@@ -1,6 +1,4 @@
 /.vscode
-/.arceos
-/.cargo
 .DS_Store
 *.elf
 *.bin
