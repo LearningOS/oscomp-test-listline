@@ -3,7 +3,7 @@
 TIMEOUT=60s
 EXIT_STATUS=0
 ROOT=$(realpath $(dirname $0))/../
-AX_ROOT=$ROOT/.arceos
+AX_ROOT=$ROOT/arceos
 S_PASS=0
 S_FAILED=1
 S_TIMEOUT=2
