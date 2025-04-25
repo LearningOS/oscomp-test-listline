@@ -1,5 +1,5 @@
 AX_ROOT ?= $(PWD)/arceos
-AX_TESTCASE ?= nimbos
+AX_TESTCASE ?= oscomp
 ARCH ?= x86_64
 LOG ?= off
 AX_TESTCASES_LIST=$(shell cat ./apps/$(AX_TESTCASE)/testcase_list | tr '\n' ',')
