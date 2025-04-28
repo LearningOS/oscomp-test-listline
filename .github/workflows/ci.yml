@@ -12,6 +12,8 @@ jobs:
         arch: [x86_64, riscv64, aarch64, loongarch64]
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
     - uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: ${{ matrix.rust-toolchain }}
@@ -50,6 +52,8 @@ jobs:
         rust-toolchain: [nightly, nightly-2025-01-18]
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
     - uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: ${{ matrix.rust-toolchain }}
@@ -77,6 +81,8 @@ jobs:
       qemu-version: 9.2.1
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
     - uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: ${{ matrix.rust-toolchain }}
@@ -108,6 +114,8 @@ jobs:
       qemu-version: 9.2.1
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
     - uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: ${{ matrix.rust-toolchain }}
