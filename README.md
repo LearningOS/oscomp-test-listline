@@ -313,3 +313,13 @@ int do_sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oact)
 ```
 
 ### 发送信号
+
+## ArceOS change
+
+### axhal
+
+```rust
+// arch/loongarch64
+pub use self::context::{TaskContext, TrapFrame, GeneralRegisters};
+```
+

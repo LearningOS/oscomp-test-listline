@@ -28,7 +28,7 @@ impl IndexMut<Signo> for SignalActions {
 /// Process-level signal manager.
 pub struct ProcessSignalManager {
     /// The process-level shared pending signals
-    pending: SpinNoIrq<PendingSignals>,
+    _pending: SpinNoIrq<PendingSignals>,
     /// The signal actions
     pub actions: Mutex<SignalActions>,
     /// The wait queue for signal.
@@ -39,7 +39,7 @@ impl ProcessSignalManager {
     /// Creates a new process signal manager.
     pub fn new() -> Self {
         Self {
-            pending: SpinNoIrq::new(PendingSignals::new()),
+            _pending: SpinNoIrq::new(PendingSignals::new()),
             actions: Mutex::new(SignalActions::default()),
             signal_wq: WaitQueue::new(),
         }

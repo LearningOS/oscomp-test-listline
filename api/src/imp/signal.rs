@@ -1,12 +1,10 @@
 use core::ffi::c_void;
 
-use axerrno::{LinuxResult, LinuxError};
+use axerrno::{LinuxError, LinuxResult};
 use axprocess::Pid;
-use axsignal::{
-    Signo, SignalSet
-};
-use linux_raw_sys::general::kernel_sigaction;
+use axsignal::{SignalSet, Signo};
 use axtask::{TaskExtRef, current};
+use linux_raw_sys::general::kernel_sigaction;
 
 use crate::ptr::{PtrWrapper, UserConstPtr, UserPtr};
 
@@ -35,7 +33,7 @@ pub fn sys_rt_sigaction(
 ) -> LinuxResult<isize> {
     check_sigsetsize(sigsetsize)?;
 
-    if signum < 1 || signum > 64 {
+    if !(1..=64).contains(&signum) {
         return Err(LinuxError::EINVAL);
     }
     if signum == Signo::SIGKILL || signum == Signo::SIGSTOP {
@@ -45,16 +43,12 @@ pub fn sys_rt_sigaction(
     let curr = current();
     let mut actions = curr.task_ext().process_data().signal_manager.actions.lock();
 
-    if let Some(oldact) = oldact.nullable(|oldact| {
-        oldact.get()
-    })? {
+    if let Some(oldact) = oldact.nullable(|oldact| oldact.get())? {
         actions[signum.into()].to_ctype(unsafe { &mut *oldact });
     }
 
-    if let Some(act) = act.nullable(|act| {
-        act.get()
-    })? {
-        actions[signum.into()] = (unsafe { *act }).try_into()?;
+    if let Some(act) = act.nullable(|act| act.get())? {
+        actions[signum.into()] = unsafe { *act }.try_into()?;
     }
 
     Ok(0)
@@ -69,7 +63,7 @@ pub fn sys_sigtimedwait(
     Ok(0)
 }
 
-pub fn sys_kill(pid: Pid, sig: i32) -> LinuxResult<isize> {
+pub fn sys_kill(_pid: Pid, _sig: i32) -> LinuxResult<isize> {
     warn!("sys_kill: not implemented");
     Ok(0)
 }
