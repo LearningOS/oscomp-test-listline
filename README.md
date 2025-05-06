@@ -137,3 +137,179 @@ pub struct Session {
     // TODO: shell job control
 }
 ```
+
+## 信号机制
+
+````mermaid
+classDiagram
+    class Signo {
+        +SIGHUP, SIGINT, SIGKILL, etc.
+        +is_realtime() bool
+        +default_action() DefaultSignalAction
+    }
+    
+    class DefaultSignalAction {
+        <<enumeration>>
+        Terminate
+        Ignore
+        CoreDump
+        Stop
+        Continue
+    }
+    
+    class SignalOSAction {
+        <<enumeration>>
+        Terminate
+        CoreDump
+        Stop
+        Continue
+        Handler
+    }
+    
+    class SignalSet {
+        -u64 value
+        +add(signal: Signo) bool
+        +remove(signal: Signo) bool
+        +has(signal: Signo) bool
+        +dequeue(mask: SignalSet) Option~Signo~
+        +to_ctype(dest: kernel_sigset_t)
+    }
+    
+    class SignalInfo {
+        -siginfo_t raw_info
+        +new(signo: Signo, code: u32)
+        +signo() Signo
+        +set_signo(signo: Signo)
+        +code() u32
+        +set_code(code: u32)
+    }
+    
+    class SignalActionFlags {
+        <<bitflags>>
+        +SIGINFO
+        +NODEFER
+        +RESETHAND
+        +RESTART
+        +ONSTACK
+        +RESTORER
+    }
+    
+    class SignalDisposition {
+        <<enumeration>>
+        Default
+        Ignore
+        Handler
+    }
+    
+    class SignalAction {
+        +flags: SignalActionFlags
+        +mask: SignalSet
+        +disposition: SignalDisposition
+        +restorer: __sigrestore_t
+        +to_ctype(dest: kernel_sigaction)
+    }
+    
+    class SignalStack {
+        +sp: usize
+        +flags: u32
+        +size: usize
+        +disabled() bool
+    }
+    
+    class PendingSignals {
+        +set: SignalSet
+        -info_std: [Option~SignalInfo~; 32]
+        -info_rt: [VecDeque~SignalInfo~; 33]
+        +new()
+        +put_signal(sig: SignalInfo) bool
+        +dequeue_signal(mask: SignalSet) Option~SignalInfo~
+    }
+    
+    Signo --> DefaultSignalAction: defines default action
+    SignalDisposition --> Signo: references for handlers
+    SignalInfo --> Signo: contains signal number
+    SignalSet --> Signo: manages set of signals
+    SignalAction --> SignalDisposition: defines action
+    SignalAction --> SignalSet: holds blocked signals
+    SignalAction --> SignalActionFlags: configures behavior
+    PendingSignals --> SignalSet: tracks pending signals
+    PendingSignals --> SignalInfo: stores signal info
+```
+
+````
+
+
+
+### 注册信号
+
+#### Linux
+
+```c
+struct sigaction {
+#ifndef __ARCH_HAS_IRIX_SIGACTION (mips define)
+	__sighandler_t	sa_handler;
+	unsigned long	sa_flags;
+#else
+	unsigned int	sa_flags;
+	__sighandler_t	sa_handler;
+#endif
+#ifdef __ARCH_HAS_SA_RESTORER (x86)
+	__sigrestore_t sa_restorer;
+#endif
+	sigset_t	sa_mask;	/* mask last for extensibility */
+};
+
+struct k_sigaction {
+	struct sigaction sa;
+#ifdef __ARCH_HAS_KA_RESTORER
+	__sigrestore_t ka_restorer;
+#endif
+};
+
+SYSCALL_DEFINE4(rt_sigaction, int, sig,
+    const struct sigaction __user *, act,
+    struct sigaction __user *, oact,
+    size_t, sigsetsize)
+{
+    struct k_sigaction new_sa, old_sa;
+    int ret = -EINVAL;
+......
+    if (act) {
+      if (copy_from_user(&new_sa.sa, act, sizeof(new_sa.sa)))
+        return -EFAULT;
+    }
+
+    ret = do_sigaction(sig, act ? &new_sa : NULL, oact ? &old_sa : NULL);
+
+    if (!ret && oact) {
+        if (copy_to_user(oact, &old_sa.sa, sizeof(old_sa.sa)))
+            return -EFAULT;
+    }
+out:
+    return ret;
+}
+
+int do_sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oact)
+{
+    struct task_struct *p = current, *t;
+    struct k_sigaction *k;
+    sigset_t mask;
+......
+    k = &p->sighand->action[sig-1];
+
+    spin_lock_irq(&p->sighand->siglock);
+    if (oact)
+        *oact = *k;
+
+    if (act) {
+        sigdelsetmask(&act->sa.sa_mask, sigmask(SIGKILL) | sigmask(SIGSTOP));
+        *k = *act;
+......
+  }
+
+  spin_unlock_irq(&p->sighand->siglock);
+  return 0;
+}
+```
+
+### 发送信号

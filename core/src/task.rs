@@ -17,6 +17,7 @@ use axhal::{
 use axmm::{AddrSpace, kernel_aspace};
 use axns::{AxNamespace, AxNamespaceIf};
 use axprocess::{Pid, Process, ProcessGroup, Session, Thread};
+use axsignal::{ProcessSignalManager, ThreadSignalManager};
 use axsync::Mutex;
 use axtask::{TaskExtRef, TaskInner, current};
 use memory_addr::VirtAddrRange;
@@ -130,6 +131,9 @@ pub struct ThreadData {
     ///
     /// When the thread exits, the kernel clears the word at this address if it is not NULL.
     pub clear_child_tid: AtomicUsize,
+
+    /// The thread signal manager
+    pub signal_manager: ThreadSignalManager,
 }
 
 impl ThreadData {
@@ -138,6 +142,7 @@ impl ThreadData {
     pub fn new() -> Self {
         Self {
             clear_child_tid: AtomicUsize::new(0),
+            signal_manager: ThreadSignalManager::new(),
         }
     }
 
@@ -165,6 +170,9 @@ pub struct ProcessData {
     heap_bottom: AtomicUsize,
     /// The user heap top
     heap_top: AtomicUsize,
+
+    /// The process signal manager
+    pub signal_manager: Arc<ProcessSignalManager>,
 }
 
 impl ProcessData {
@@ -176,6 +184,7 @@ impl ProcessData {
             ns: AxNamespace::new_thread_local(),
             heap_bottom: AtomicUsize::new(axconfig::plat::USER_HEAP_BASE),
             heap_top: AtomicUsize::new(axconfig::plat::USER_HEAP_BASE),
+            signal_manager: Arc::new(ProcessSignalManager::new()),
         }
     }
 
