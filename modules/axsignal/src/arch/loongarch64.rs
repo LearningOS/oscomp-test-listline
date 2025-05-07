@@ -1,6 +1,6 @@
 use core::mem;
 
-use axhal::arch::{TrapFrame, GeneralRegisters};
+use axhal::arch::{GeneralRegisters, TrapFrame};
 
 use crate::{SignalSet, SignalStack};
 

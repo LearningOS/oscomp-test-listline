@@ -11,6 +11,6 @@ mod pending;
 mod types;
 
 pub use action::*;
+pub use new_api::*;
 pub use pending::*;
 pub use types::*;
-pub use new_api::*;

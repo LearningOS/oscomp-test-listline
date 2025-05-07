@@ -14,6 +14,8 @@ run_user_app major process
 
 ## 进程管理
 
+### 数据结构
+
 ```mermaid
 graph TD
     subgraph "Task 层 (基础调度单元)"
@@ -137,6 +139,10 @@ pub struct Session {
     // TODO: shell job control
 }
 ```
+
+### 资源限制
+
+
 
 ## 信号机制
 
@@ -323,3 +329,7 @@ int do_sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oact)
 pub use self::context::{TaskContext, TrapFrame, GeneralRegisters};
 ```
 
+## Questions
+
+- C类型使用混乱，调用core::ffi，linux_raw_sys，如果要调用areaos_posix_api，还需要调用areos_posix_api中的ctypes
+- 同步原语使用混乱，axsync，spin，lock_api(axsignal)

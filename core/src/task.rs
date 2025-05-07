@@ -10,6 +10,7 @@ use alloc::{
     string::String,
     sync::{Arc, Weak},
 };
+use axerrno::{LinuxError, LinuxResult};
 use axhal::{
     arch::UspaceContext,
     time::{NANOS_PER_MICROS, NANOS_PER_SEC, monotonic_time_nanos},
@@ -24,7 +25,7 @@ use memory_addr::VirtAddrRange;
 use spin::{Once, RwLock};
 use weak_map::WeakMap;
 
-use crate::time::TimeStat;
+use crate::{resources::Rlimits, time::TimeStat};
 
 /// Create a new user task.
 pub fn new_user_task(
@@ -170,7 +171,8 @@ pub struct ProcessData {
     heap_bottom: AtomicUsize,
     /// The user heap top
     heap_top: AtomicUsize,
-
+    /// The process resource limits
+    pub rlimits: RwLock<Rlimits>,
     /// The process signal manager
     pub signal_manager: Arc<ProcessSignalManager>,
 }
@@ -184,6 +186,7 @@ impl ProcessData {
             ns: AxNamespace::new_thread_local(),
             heap_bottom: AtomicUsize::new(axconfig::plat::USER_HEAP_BASE),
             heap_top: AtomicUsize::new(axconfig::plat::USER_HEAP_BASE),
+            rlimits: RwLock::new(Rlimits::default()),
             signal_manager: Arc::new(ProcessSignalManager::new()),
         }
     }
@@ -275,4 +278,14 @@ pub fn add_thread_to_table(thread: &Arc<Thread>) {
         return;
     }
     session_table.insert(session.sid(), &session);
+}
+
+/// Get the [`Thread`] associated with the given tid.
+pub fn get_thread(tid: Pid) -> LinuxResult<Arc<Thread>> {
+    THREAD_TABLE.read().get(&tid).ok_or(LinuxError::ESRCH)
+}
+
+/// Get the [`Process`] associated with the given pid.
+pub fn get_process(pid: Pid) -> LinuxResult<Arc<Process>> {
+    PROCESS_TABLE.read().get(&pid).ok_or(LinuxError::ESRCH)
 }

@@ -1,10 +1,10 @@
+use crate::{PendingSignals, SignalAction, Signo};
+use axsync::{Mutex, spin::SpinNoIrq};
+use axtask::WaitQueue;
 use core::{
     array,
     ops::{Index, IndexMut},
 };
-use crate::{PendingSignals, SignalAction, Signo};
-use axsync::{Mutex, spin::SpinNoIrq};
-use axtask::WaitQueue;
 
 /// Signal actions for a process.
 pub struct SignalActions(pub(crate) [SignalAction; 64]);
