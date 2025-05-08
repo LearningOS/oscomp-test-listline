@@ -1,10 +1,11 @@
 use core::ffi::c_void;
 
 use axerrno::{LinuxError, LinuxResult};
-use axprocess::Pid;
-use axsignal::{SignalSet, Signo};
+use axprocess::{Process, ProcessGroup, Pid};
+use axsignal::{SignalSet, Signo, SignalInfo};
 use axtask::{TaskExtRef, current};
-use linux_raw_sys::general::kernel_sigaction;
+use linux_raw_sys::general::{kernel_sigaction, SI_USER};
+use starry_core::task::{ProcessData, get_process, processes, get_process_group};
 
 use crate::ptr::{PtrWrapper, UserConstPtr, UserPtr};
 
@@ -63,7 +64,65 @@ pub fn sys_sigtimedwait(
     Ok(0)
 }
 
-pub fn sys_kill(_pid: Pid, _sig: i32) -> LinuxResult<isize> {
-    warn!("sys_kill: not implemented");
-    Ok(0)
+pub fn send_signal_process(proc: &Process, sig: SignalInfo) {
+    let Some(proc_data) = proc.data::<ProcessData>() else {
+        return;
+    };
+    proc_data.signal_manager.send_signal(sig);
+}
+
+pub fn send_signal_process_group(pg: &ProcessGroup, sig: SignalInfo) -> usize {
+    let processes = pg.processes();
+    for proc in &processes {
+        send_signal_process(proc, sig.clone());
+    }
+    processes.len()
+}
+
+fn make_siginfo(signo: i32, code: u32) -> LinuxResult<Option<SignalInfo>> {
+    if signo == 0 {
+        return Ok(None);
+    }
+    if !(1..64).contains(&signo) {
+        return Err(LinuxError::EINVAL);
+    }
+    Ok(Some(SignalInfo::new(signo.into(), code.into())))
+}
+
+pub fn sys_kill(pid: i32, sig: i32) -> LinuxResult<isize> {
+    let Some(sig) = make_siginfo(sig, SI_USER)? else {
+        // TODO: should also check permissions
+        return Ok(0);
+    };
+
+    let curr = current();
+    match pid {
+        1.. => {
+            let proc = get_process(pid as Pid)?;
+            send_signal_process(&proc, sig);
+            Ok(1)
+        }
+        0 => {
+            let pg = curr.task_ext().thread.process().group();
+            let count = send_signal_process_group(&pg, sig);
+            Ok(count as isize)
+        }
+        -1 => {
+            let mut count = 0;
+            for proc in processes() {
+                if proc.is_init() {
+                    // init process
+                    continue;
+                }
+                send_signal_process(&proc, sig.clone());
+                count += 1;
+            }
+            Ok(count)
+        }
+        ..-1 => {
+            let pg = get_process_group((-pid) as Pid)?;
+            let count = send_signal_process_group(&pg, sig);
+            Ok(count as isize)
+        }
+    }
 }

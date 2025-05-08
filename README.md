@@ -320,6 +320,107 @@ int do_sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oact)
 
 ### 发送信号
 
+### Linux
+
+```c
+// kernel/signal.c
+SYSCALL_DEFINE2(kill, pid_t, pid, int, sig)
+{
+    struct kernel_siginfo info;
+
+    // 初始化信号信息结构体
+    clear_siginfo(&info);
+    info.si_signo = sig;
+    info.si_errno = 0;
+    info.si_code = SI_USER;  // 来自用户空间的信号
+    info.si_pid = task_tgid_vnr(current); // 发送者 PID
+    info.si_uid = from_kuid_munged(current_user_ns(), current_uid());
+
+    // 核心处理函数
+    return kill_something_info(sig, &info, pid);
+}
+
+static int kill_something_info(int sig, struct kernel_siginfo *info, pid_t pid)
+{
+    if (pid > 0) {
+        // 发送给单个进程
+        return kill_pid_info(sig, info, find_vpid(pid));
+    } else if (pid == -1) {
+        // 广播给所有有权限的进程
+        int ret = __kill_pgrp_info(sig, info, task_pgrp(current));
+        // ... 其他进程组处理
+    } else if (pid < 0) {
+        // 发送给进程组 |pid|
+        return kill_pgrp_info(sig, info, pid);
+    } else if (pid == 0) {
+        // 当前进程组
+        return kill_pgrp_info(sig, info, task_pgrp(current));
+    }
+    return -EINVAL;
+}
+
+// kernel/signal.c
+static int check_kill_permission(int sig, struct kernel_siginfo *info,
+                                 struct task_struct *t)
+{
+    const struct cred *cred = current_cred();
+    const struct cred *tcred = __task_cred(t);
+
+    // 特权进程 (CAP_KILL) 可以绕过权限检查
+    if (cred->user_ns != tcred->user_ns ||
+        !kuid_has_mapping(cred->user_ns, tcred->suid)) {
+        if (sig != SIGCONT || task_session(current) != task_session(t))
+            return -EPERM;
+    }
+
+    // 检查 CAP_KILL 能力
+    if (has_capability_noaudit(current, CAP_KILL))
+        return 0;
+
+    // 普通用户只能向自己的进程发送信号
+    if (uid_eq(cred->euid, tcred->suid) ||
+        uid_eq(cred->euid, tcred->uid)  ||
+        uid_eq(cred->uid,  tcred->suid) ||
+        uid_eq(cred->uid,  tcred->uid))
+        return 0;
+
+    return -EPERM;
+}
+
+// kernel/signal.c
+int send_signal(int sig, struct kernel_siginfo *info, struct task_struct *t,
+                enum pid_type type)
+{
+    int ret = 0;
+
+    // 忽略无效信号
+    if (!valid_signal(sig) || sig < 0)
+        return -EINVAL;
+
+    // 检查权限
+    ret = check_kill_permission(sig, info, t);
+    if (ret)
+        return ret;
+
+    // 合并相同的实时信号
+    if (legacy_queue(sig, &t->pending))
+        return 0;
+
+    // 分配信号队列项
+    q = __sigqueue_alloc(sig, t, GFP_ATOMIC, 0);
+    if (q) {
+        list_add_tail(&q->list, &t->pending.list);
+        sigaddset(&t->pending.signal, sig);
+    }
+
+    // 唤醒进程处理信号
+    signal_wake_up(t, sig == SIGKILL);
+    return 0;
+}
+```
+
+
+
 ## ArceOS change
 
 ### axhal

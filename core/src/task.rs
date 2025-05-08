@@ -9,6 +9,7 @@ use core::{
 use alloc::{
     string::String,
     sync::{Arc, Weak},
+    vec::Vec,
 };
 use axerrno::{LinuxError, LinuxResult};
 use axhal::{
@@ -280,6 +281,11 @@ pub fn add_thread_to_table(thread: &Arc<Thread>) {
     session_table.insert(session.sid(), &session);
 }
 
+/// Get all processes.
+pub fn processes() -> Vec<Arc<Process>> {
+    PROCESS_TABLE.read().values().collect()
+}
+
 /// Get the [`Thread`] associated with the given tid.
 pub fn get_thread(tid: Pid) -> LinuxResult<Arc<Thread>> {
     THREAD_TABLE.read().get(&tid).ok_or(LinuxError::ESRCH)
@@ -288,4 +294,17 @@ pub fn get_thread(tid: Pid) -> LinuxResult<Arc<Thread>> {
 /// Get the [`Process`] associated with the given pid.
 pub fn get_process(pid: Pid) -> LinuxResult<Arc<Process>> {
     PROCESS_TABLE.read().get(&pid).ok_or(LinuxError::ESRCH)
+}
+
+/// Get the [`ProcessGroup`] associated with the given pgid.
+pub fn get_process_group(pgid: Pid) -> LinuxResult<Arc<ProcessGroup>> {
+    PROCESS_GROUP_TABLE
+        .read()
+        .get(&pgid)
+        .ok_or(LinuxError::ESRCH)
+}
+
+/// Get the [`Session`] associated with the given sid.
+pub fn get_session(sid: Pid) -> LinuxResult<Arc<Session>> {
+    SESSION_TABLE.read().get(&sid).ok_or(LinuxError::ESRCH)
 }

@@ -1,6 +1,7 @@
+use super::ProcessSignalManager;
 use crate::{PendingSignals, SignalSet, SignalStack};
 use axsync::{Mutex, spin::SpinNoIrq};
-
+use alloc::sync::Arc;
 /// Thread-level signal manager.
 pub struct ThreadSignalManager {
     /// The pending signals
