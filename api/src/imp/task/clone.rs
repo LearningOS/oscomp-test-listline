@@ -187,7 +187,12 @@ pub fn sys_clone(
         &builder.data(process_data).build()
     };
 
-    let thread_data = ThreadData::new();
+    let Some(proc_data) = process.data::<ProcessData>() else {
+        error!("Failed to get process data");
+        return Err(LinuxError::EINVAL);
+    };
+
+    let thread_data = ThreadData::new(proc_data.signal_manager.clone());
     if flags.contains(CloneFlags::CHILD_CLEARTID) {
         thread_data.set_clear_child_tid(child_tid);
     }

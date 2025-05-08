@@ -1,5 +1,5 @@
 use crate::{PendingSignals, SignalAction, Signo, SignalInfo, SignalSet};
-use axsync::{Mutex, spin::SpinNoIrq};
+use lock_api::{Mutex, RawMutex};
 use axtask::WaitQueue;
 use core::{
     array,
@@ -26,22 +26,25 @@ impl IndexMut<Signo> for SignalActions {
 }
 
 /// Process-level signal manager.
-pub struct ProcessSignalManager {
+pub struct ProcessSignalManager<M> {
     /// The process-level shared pending signals
-    pending: SpinNoIrq<PendingSignals>,
+    pending: Mutex<M, PendingSignals>,
     /// The signal actions
-    pub actions: Mutex<SignalActions>,
+    pub actions: Mutex<M, SignalActions>,
     /// The wait queue for signal.
-    pub signal_wq: WaitQueue,
+    pub(crate) wq: WaitQueue,
+    /// The default restorer function.
+    pub(crate) default_restorer: usize,
 }
 
-impl ProcessSignalManager {
+impl<M: RawMutex> ProcessSignalManager<M> {
     /// Creates a new process signal manager.
     pub fn new() -> Self {
         Self {
-            pending: SpinNoIrq::new(PendingSignals::new()),
+            pending: Mutex::new(PendingSignals::new()),
             actions: Mutex::new(SignalActions::default()),
-            signal_wq: WaitQueue::new(),
+            wq: WaitQueue::new(),
+            default_restorer: 0,
         }
     }
     
@@ -54,7 +57,7 @@ impl ProcessSignalManager {
     /// See [`ThreadSignalManager::send_signal`] for the thread-level version.
     pub fn send_signal(&self, sig: SignalInfo) {
         self.pending.lock().put_signal(sig);
-        self.signal_wq.notify_one(false);
+        self.wq.notify_one(false);
     }
 
     /// Gets currently pending signals.

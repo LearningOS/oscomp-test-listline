@@ -20,7 +20,7 @@ use axmm::{AddrSpace, kernel_aspace};
 use axns::{AxNamespace, AxNamespaceIf};
 use axprocess::{Pid, Process, ProcessGroup, Session, Thread};
 use axsignal::{ProcessSignalManager, ThreadSignalManager};
-use axsync::Mutex;
+use axsync::{Mutex, RawMutex};
 use axtask::{TaskExtRef, TaskInner, current};
 use memory_addr::VirtAddrRange;
 use spin::{Once, RwLock};
@@ -135,16 +135,16 @@ pub struct ThreadData {
     pub clear_child_tid: AtomicUsize,
 
     /// The thread signal manager
-    pub signal_manager: ThreadSignalManager,
+    pub signal_manager: ThreadSignalManager<RawMutex>,
 }
 
 impl ThreadData {
     /// Create a new [`ThreadData`].
     #[allow(clippy::new_without_default)]
-    pub fn new() -> Self {
+    pub fn new(proc: Arc<ProcessSignalManager<RawMutex>>) -> Self {
         Self {
             clear_child_tid: AtomicUsize::new(0),
-            signal_manager: ThreadSignalManager::new(),
+            signal_manager: ThreadSignalManager::new(proc),
         }
     }
 
@@ -175,7 +175,7 @@ pub struct ProcessData {
     /// The process resource limits
     pub rlimits: RwLock<Rlimits>,
     /// The process signal manager
-    pub signal_manager: Arc<ProcessSignalManager>,
+    pub signal_manager: Arc<ProcessSignalManager<RawMutex>>,
 }
 
 impl ProcessData {
