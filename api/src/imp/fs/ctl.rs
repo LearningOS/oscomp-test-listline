@@ -1,8 +1,8 @@
 use core::ffi::{c_char, c_void};
 
 use alloc::string::ToString;
-use arceos_posix_api::AT_FDCWD;
 use axerrno::{AxError, LinuxError, LinuxResult};
+use linux_raw_sys::general::AT_FDCWD;
 use macro_rules_attribute::apply;
 
 use crate::{
@@ -300,3 +300,12 @@ pub fn sys_unlinkat(dir_fd: isize, path: UserConstPtr<c_char>, flags: usize) -> 
 pub fn sys_getcwd(buf: UserPtr<c_char>, size: usize) -> LinuxResult<isize> {
     Ok(arceos_posix_api::sys_getcwd(buf.get_as_null_terminated()?.as_ptr() as _, size) as _)
 }
+
+pub fn sys_link(old_path: UserConstPtr<c_char>, new_path: UserConstPtr<c_char>) -> LinuxResult<isize> {
+    sys_linkat(AT_FDCWD, old_path, AT_FDCWD, new_path, 0)
+}
+
+pub fn sys_unlink(path: UserConstPtr<c_char>) -> LinuxResult<isize> {
+    sys_unlinkat(AT_FDCWD as _, path, 0)
+}
+
