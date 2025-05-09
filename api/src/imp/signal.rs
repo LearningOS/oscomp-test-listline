@@ -73,6 +73,16 @@ pub fn sys_rt_sigaction(
     Ok(0)
 }
 
+pub fn sys_rt_sigreturn() -> LinuxResult<isize> {
+    warn!("sys_rt_sigpending: not implemented");
+    Ok(0)
+}
+
+pub fn sys_rt_sigpending() -> LinuxResult<isize> {
+    warn!("sys_rt_sigpending: not implemented");
+    Ok(0)
+}
+
 pub fn sys_rt_sigtimedwait(
     set: UserConstPtr<SignalSet>,
     info: UserPtr<SignalInfo>,
@@ -82,10 +92,7 @@ pub fn sys_rt_sigtimedwait(
     debug!("sys_rt_sigtimedwait");
     check_sigsetsize(sigsetsize)?;
 
-    let set = set.nullable(|set| set.get())?;
-    if set.is_none() {
-        return Err(LinuxError::EINVAL);
-    }
+    let set = set.get_as_null_terminated()?;
     let info_ptr = info.nullable(|info| info.get())?;
 
     let timeout_duration = if let Some(timeout) = timeout.nullable(|timeout| timeout.get())? {
@@ -103,7 +110,7 @@ pub fn sys_rt_sigtimedwait(
 
     let siginfo = thr_data
         .signal_manager
-        .wait_timeout(unsafe { *set.unwrap() }, timeout_duration);
+        .wait_timeout(unsafe { *set.as_ptr() }, timeout_duration);
 
     match siginfo {
         Some(sig) => {
@@ -114,6 +121,21 @@ pub fn sys_rt_sigtimedwait(
         }
         None => Err(LinuxError::EAGAIN),
     }
+}
+
+pub fn sys_rt_sigqueueinfo() -> LinuxResult<isize> {
+    warn!("sys_rt_sigqueueinfo: not implemented");
+    Ok(0)
+}
+
+pub fn sys_rt_sigsuspend() -> LinuxResult<isize> {
+    warn!("sys_rt_sigsuspend: not implemented");
+    Ok(0)
+}
+
+pub fn sys_sigaltstack() -> LinuxResult<isize> {
+    warn!("sys_sigaltstack: not implemented");
+    Ok(0)
 }
 
 pub fn send_signal_thread(thread: &Thread, sig: SignalInfo) {

@@ -173,7 +173,9 @@ impl Signo {
 }
 
 /// Signal set. Compatible with `struct sigset_t` in libc.
-#[derive(Default, Debug, Clone, Copy, Not, BitOr, BitOrAssign, BitAnd, BitAndAssign)]
+#[derive(
+    Default, Debug, Clone, Copy, Not, BitOr, BitOrAssign, BitAnd, BitAndAssign, PartialEq, Eq,
+)]
 #[repr(transparent)]
 pub struct SignalSet(pub u64);
 impl SignalSet {
