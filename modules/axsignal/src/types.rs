@@ -76,59 +76,6 @@ pub enum Signo {
     SIGRT32 = 64,
 }
 
-impl From<Signo> for u32 {
-    fn from(sig: Signo) -> Self {
-        sig as u32
-    }
-}
-
-impl From<Signo> for i32 {
-    fn from(sig: Signo) -> Self {
-        sig as i32
-    }
-}
-
-impl From<i32> for Signo {
-    fn from(sig: i32) -> Self {
-        if !(1..=64).contains(&sig) {
-            panic!("invalid signal number: {}", sig);
-        }
-        Signo::from_repr(sig as u8).unwrap()
-    }
-}
-
-impl From<u32> for Signo {
-    fn from(sig: u32) -> Self {
-        if !(1..=64).contains(&sig) {
-            panic!("invalid signal number: {}", sig);
-        }
-        Signo::from_repr(sig as u8).unwrap()
-    }
-}
-impl PartialEq<u32> for Signo {
-    fn eq(&self, other: &u32) -> bool {
-        (*self as u32) == *other
-    }
-}
-
-impl PartialEq<Signo> for u32 {
-    fn eq(&self, other: &Signo) -> bool {
-        *self == (*other as u32)
-    }
-}
-
-impl PartialEq<i32> for Signo {
-    fn eq(&self, other: &i32) -> bool {
-        (*self as i32) == *other
-    }
-}
-
-impl PartialEq<Signo> for i32 {
-    fn eq(&self, other: &Signo) -> bool {
-        *self == (*other as i32)
-    }
-}
-
 impl Signo {
     pub fn is_realtime(&self) -> bool {
         *self >= Signo::SIGRTMIN
@@ -227,16 +174,6 @@ impl SignalSet {
             *mem::transmute::<&mut kernel_sigset_t, &mut u64>(dest) = self.0;
         }
     }
-
-    /// Adds all signals in `other` to this set.
-    pub fn add_from(&mut self, other: &SignalSet) {
-        self.0 |= other.0;
-    }
-
-    /// Removes all signals in `other` from this set.
-    pub fn remove_from(&mut self, other: &SignalSet) {
-        self.0 &= !other.0;
-    }
 }
 
 impl From<kernel_sigset_t> for SignalSet {
@@ -252,7 +189,7 @@ impl From<kernel_sigset_t> for SignalSet {
 pub struct SignalInfo(pub siginfo_t);
 
 impl SignalInfo {
-    pub fn new(signo: Signo, code: u32) -> Self {
+    pub fn new(signo: Signo, code: i32) -> Self {
         let mut result: Self = unsafe { mem::zeroed() };
         result.set_signo(signo);
         result.set_code(code);
@@ -267,12 +204,12 @@ impl SignalInfo {
         self.0.__bindgen_anon_1.__bindgen_anon_1.si_signo = signo as _;
     }
 
-    pub fn code(&self) -> u32 {
-        unsafe { self.0.__bindgen_anon_1.__bindgen_anon_1.si_code as _ }
+    pub fn code(&self) -> i32 {
+        unsafe { self.0.__bindgen_anon_1.__bindgen_anon_1.si_code }
     }
 
-    pub fn set_code(&mut self, code: u32) {
-        self.0.__bindgen_anon_1.__bindgen_anon_1.si_code = code as _;
+    pub fn set_code(&mut self, code: i32) {
+        self.0.__bindgen_anon_1.__bindgen_anon_1.si_code = code;
     }
 }
 

@@ -1,11 +1,1 @@
-/musl/busybox echo "#### OS COMP TEST GROUP START libctest-glibc ####"
-/musl/busybox echo "#### OS COMP TEST GROUP START libctest-musl ####"
-/musl/runtest.exe -w entry-static.exe argv
-/musl/runtest.exe -w entry-static.exe basename
-/musl/runtest.exe -w entry-static.exe clocale_mbfuncs
-/musl/runtest.exe -w entry-static.exe clock_gettime
-/musl/runtest.exe -w entry-static.exe dirname
-/musl/runtest.exe -w entry-static.exe env
-/musl/runtest.exe -w entry-static.exe fdopen
-/musl/busybox echo "#### OS COMP TEST GROUP END libctest-musl ####"
-/musl/busybox echo "#### OS COMP TEST GROUP END libctest-glibc ####"
+/musl/busybox sh /musl/libctest_testcode.sh

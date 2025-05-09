@@ -1,9 +1,11 @@
+use core::{mem, time::Duration};
+
+use alloc::sync::Arc;
+use arceos_posix_api::ctypes::timespec;
 use axerrno::{LinuxError, LinuxResult};
 use axprocess::{Pid, Process, ProcessGroup, Thread};
-use axsignal::{SignalInfo, SignalSet, Signo};
-use axtask::{TaskExtRef, current};
 use linux_raw_sys::general::{
-    SI_TKILL, SI_USER, SIG_BLOCK, SIG_SETMASK, SIG_UNBLOCK, kernel_sigaction, timespec,
+    MINSIGSTKSZ, SI_TKILL, SI_USER, SIG_BLOCK, SIG_SETMASK, SIG_UNBLOCK, kernel_sigaction, siginfo,
 };
 use starry_core::task::{
     ProcessData, ThreadData, get_process, get_process_group, get_thread, processes,
@@ -11,11 +13,66 @@ use starry_core::task::{
 
 use crate::ptr::{PtrWrapper, UserConstPtr, UserPtr};
 
-pub fn check_sigsetsize(sigsetsize: usize) -> LinuxResult<()> {
-    if sigsetsize != core::mem::size_of::<SignalSet>() {
+use axhal::{
+    arch::TrapFrame,
+    trap::{POST_TRAP, register_trap_handler},
+};
+use axsignal::{SignalInfo, SignalOSAction, SignalSet, SignalStack, Signo};
+use axtask::{TaskExtRef, current};
+
+use super::do_exit;
+
+fn check_signals(tf: &mut TrapFrame, restore_blocked: Option<SignalSet>) -> bool {
+    let Some((sig, os_action)) = current()
+        .task_ext()
+        .thread_data()
+        .signal_manager
+        .check_signals(tf, restore_blocked)
+    else {
+        return false;
+    };
+
+    let signo = sig.signo();
+    match os_action {
+        SignalOSAction::Terminate => {
+            do_exit(128 + signo as i32, true);
+        }
+        SignalOSAction::CoreDump => {
+            // TODO: implement core dump
+            do_exit(128 + signo as i32, true);
+        }
+        SignalOSAction::Stop => {
+            // TODO: implement stop
+            do_exit(1, true);
+        }
+        SignalOSAction::Continue => {
+            // TODO: implement continue
+        }
+        SignalOSAction::Handler => {
+            // do nothing
+        }
+    }
+    true
+}
+
+#[register_trap_handler(POST_TRAP)]
+fn post_trap_callback(tf: &mut TrapFrame, from_user: bool) {
+    if !from_user {
+        return;
+    }
+
+    check_signals(tf, None);
+}
+
+fn check_sigset_size(size: usize) -> LinuxResult<()> {
+    if size != size_of::<SignalSet>() {
         return Err(LinuxError::EINVAL);
     }
     Ok(())
+}
+
+fn parse_signo(signo: u32) -> LinuxResult<Signo> {
+    Signo::from_repr(signo as u8).ok_or(LinuxError::EINVAL)
 }
 
 pub fn sys_rt_sigprocmask(
@@ -24,159 +81,103 @@ pub fn sys_rt_sigprocmask(
     oldset: UserPtr<SignalSet>,
     sigsetsize: usize,
 ) -> LinuxResult<isize> {
-    check_sigsetsize(sigsetsize)?;
+    check_sigset_size(sigsetsize)?;
 
-    let curr = current();
-    let mut blocked = curr.task_ext().thread_data().signal_manager.blocked_lock();
+    current()
+        .task_ext()
+        .thread_data()
+        .signal_manager
+        .with_blocked_mut::<LinuxResult<_>>(|blocked| {
+            if let Some(oldset) = oldset.nullable(UserPtr::get)? {
+                unsafe { *oldset = *blocked };
+            }
 
-    if let Some(oldset) = oldset.nullable(|oldset| oldset.get())? {
-        unsafe { *oldset = *blocked };
-    }
+            if let Some(set) = set.nullable(UserConstPtr::get)? {
+                let set = unsafe { *set };
+                match how as u32 {
+                    SIG_BLOCK => *blocked |= set,
+                    SIG_UNBLOCK => *blocked &= !set,
+                    SIG_SETMASK => *blocked = set,
+                    _ => return Err(LinuxError::EINVAL),
+                }
+            }
+            Ok(())
+        })?;
 
-    if let Some(set) = set.nullable(|set| set.get())? {
-        match how as u32 {
-            SIG_BLOCK => unsafe { blocked.add_from(&*set) },
-            SIG_UNBLOCK => unsafe { blocked.remove_from(&*set) },
-            SIG_SETMASK => unsafe { *blocked = *set },
-            _ => return Err(LinuxError::EINVAL),
-        }
-    }
     Ok(0)
 }
 
 pub fn sys_rt_sigaction(
-    signum: i32,
+    signo: u32,
     act: UserConstPtr<kernel_sigaction>,
     oldact: UserPtr<kernel_sigaction>,
     sigsetsize: usize,
 ) -> LinuxResult<isize> {
-    check_sigsetsize(sigsetsize)?;
+    check_sigset_size(sigsetsize)?;
 
-    if !(1..=64).contains(&signum) {
-        return Err(LinuxError::EINVAL);
-    }
-    if signum == Signo::SIGKILL || signum == Signo::SIGSTOP {
+    let signo = parse_signo(signo)?;
+    if matches!(signo, Signo::SIGKILL | Signo::SIGSTOP) {
         return Err(LinuxError::EINVAL);
     }
 
     let curr = current();
     let mut actions = curr.task_ext().process_data().signal_manager.actions.lock();
-
-    if let Some(oldact) = oldact.nullable(|oldact| oldact.get())? {
-        actions[signum.into()].to_ctype(unsafe { &mut *oldact });
+    if let Some(oldact) = oldact.nullable(UserPtr::get)? {
+        actions[signo].to_ctype(unsafe { &mut *oldact });
     }
-
-    if let Some(act) = act.nullable(|act| act.get())? {
-        actions[signum.into()] = unsafe { *act }.try_into()?;
+    if let Some(act) = act.nullable(UserConstPtr::get)? {
+        actions[signo] = unsafe { (*act).try_into()? };
     }
-
     Ok(0)
 }
 
-pub fn sys_rt_sigreturn() -> LinuxResult<isize> {
-    warn!("sys_rt_sigpending: not implemented");
-    Ok(0)
-}
-
-pub fn sys_rt_sigpending() -> LinuxResult<isize> {
-    warn!("sys_rt_sigpending: not implemented");
-    Ok(0)
-}
-
-pub fn sys_rt_sigtimedwait(
-    set: UserConstPtr<SignalSet>,
-    info: UserPtr<SignalInfo>,
-    timeout: UserConstPtr<timespec>,
-    sigsetsize: usize,
-) -> LinuxResult<isize> {
-    debug!("sys_rt_sigtimedwait");
-    check_sigsetsize(sigsetsize)?;
-
-    let set = set.get_as_null_terminated()?;
-    let info_ptr = info.nullable(|info| info.get())?;
-
-    let timeout_duration = if let Some(timeout) = timeout.nullable(|timeout| timeout.get())? {
-        unsafe {
-            let seconds = (*timeout).tv_sec as u64;
-            let nanos = (*timeout).tv_nsec as u32;
-            Some(core::time::Duration::new(seconds, nanos))
-        }
-    } else {
-        None
-    };
-
-    let curr = current();
-    let thr_data = curr.task_ext().thread_data();
-
-    let siginfo = thr_data
-        .signal_manager
-        .wait_timeout(unsafe { *set.as_ptr() }, timeout_duration);
-
-    match siginfo {
-        Some(sig) => {
-            if let Some(info_ptr) = info_ptr {
-                unsafe { *info_ptr = sig.clone() };
-            }
-            Ok(sig.signo() as isize)
-        }
-        None => Err(LinuxError::EAGAIN),
+pub fn sys_rt_sigpending(set: UserPtr<SignalSet>, sigsetsize: usize) -> LinuxResult<isize> {
+    check_sigset_size(sigsetsize)?;
+    unsafe {
+        *set.get()? = current().task_ext().thread_data().signal_manager.pending();
     }
-}
-
-pub fn sys_rt_sigqueueinfo() -> LinuxResult<isize> {
-    warn!("sys_rt_sigqueueinfo: not implemented");
     Ok(0)
 }
 
-pub fn sys_rt_sigsuspend() -> LinuxResult<isize> {
-    warn!("sys_rt_sigsuspend: not implemented");
-    Ok(0)
-}
-
-pub fn sys_sigaltstack() -> LinuxResult<isize> {
-    warn!("sys_sigaltstack: not implemented");
-    Ok(0)
-}
-
-pub fn send_signal_thread(thread: &Thread, sig: SignalInfo) {
-    let Some(thread_data) = thread.data::<ThreadData>() else {
-        return;
+pub fn send_signal_thread(thr: &Thread, sig: SignalInfo) -> LinuxResult<()> {
+    info!("Send signal {:?} to thread {}", sig.signo(), thr.tid());
+    let Some(thr) = thr.data::<ThreadData>() else {
+        return Err(LinuxError::EPERM);
     };
-    thread_data.signal_manager.send_signal(sig);
+    thr.signal_manager.send_signal(sig);
+    Ok(())
 }
-
-pub fn send_signal_process(proc: &Process, sig: SignalInfo) {
-    info!(
-        "Send signal {} to process {}",
-        sig.signo() as i32,
-        proc.pid()
-    );
-    let Some(proc_data) = proc.data::<ProcessData>() else {
-        return;
+pub fn send_signal_process(proc: &Process, sig: SignalInfo) -> LinuxResult<()> {
+    info!("Send signal {:?} to process {}", sig.signo(), proc.pid());
+    let Some(proc) = proc.data::<ProcessData>() else {
+        return Err(LinuxError::EPERM);
     };
-    proc_data.signal_manager.send_signal(sig);
+    proc.signal_manager.send_signal(sig);
+    Ok(())
 }
-
 pub fn send_signal_process_group(pg: &ProcessGroup, sig: SignalInfo) -> usize {
-    let processes = pg.processes();
-    for proc in &processes {
-        send_signal_process(proc, sig.clone());
+    info!(
+        "Send signal {:?} to process group {}",
+        sig.signo(),
+        pg.pgid()
+    );
+    let mut count = 0;
+    for proc in pg.processes() {
+        count += send_signal_process(&proc, sig.clone()).is_ok() as usize;
     }
-    processes.len()
+    count
 }
 
-fn make_siginfo(signo: i32, code: u32) -> LinuxResult<Option<SignalInfo>> {
+fn make_siginfo(signo: u32, code: i32) -> LinuxResult<Option<SignalInfo>> {
     if signo == 0 {
         return Ok(None);
     }
-    if !(1..64).contains(&signo) {
-        return Err(LinuxError::EINVAL);
-    }
-    Ok(Some(SignalInfo::new(signo.into(), code)))
+    let signo = parse_signo(signo)?;
+    Ok(Some(SignalInfo::new(signo, code)))
 }
 
-pub fn sys_kill(pid: i32, sig: i32) -> LinuxResult<isize> {
-    let Some(sig) = make_siginfo(sig, SI_USER)? else {
+pub fn sys_kill(pid: i32, signo: u32) -> LinuxResult<isize> {
+    let Some(sig) = make_siginfo(signo, SI_USER as _)? else {
         // TODO: should also check permissions
         return Ok(0);
     };
@@ -185,13 +186,12 @@ pub fn sys_kill(pid: i32, sig: i32) -> LinuxResult<isize> {
     match pid {
         1.. => {
             let proc = get_process(pid as Pid)?;
-            send_signal_process(&proc, sig);
+            send_signal_process(&proc, sig)?;
             Ok(1)
         }
         0 => {
             let pg = curr.task_ext().thread.process().group();
-            let count = send_signal_process_group(&pg, sig);
-            Ok(count as isize)
+            Ok(send_signal_process_group(&pg, sig) as _)
         }
         -1 => {
             let mut count = 0;
@@ -200,39 +200,177 @@ pub fn sys_kill(pid: i32, sig: i32) -> LinuxResult<isize> {
                     // init process
                     continue;
                 }
-                send_signal_process(&proc, sig.clone());
+                send_signal_process(&proc, sig.clone())?;
                 count += 1;
             }
             Ok(count)
         }
         ..-1 => {
             let pg = get_process_group((-pid) as Pid)?;
-            let count = send_signal_process_group(&pg, sig);
-            Ok(count as isize)
+            Ok(send_signal_process_group(&pg, sig) as _)
         }
     }
 }
 
-pub fn sys_tkill(tid: i32, sig: i32) -> LinuxResult<isize> {
-    let Some(sig) = make_siginfo(sig, SI_USER)? else {
+pub fn sys_tkill(tid: Pid, signo: u32) -> LinuxResult<isize> {
+    let Some(sig) = make_siginfo(signo, SI_TKILL)? else {
         // TODO: should also check permissions
         return Ok(0);
     };
-    let thread = get_thread(tid as Pid)?;
-    send_signal_thread(&thread, sig);
+
+    let thr = get_thread(tid)?;
+    send_signal_thread(&thr, sig)?;
     Ok(0)
 }
 
-pub fn sys_tgkill(tgid: i32, tid: i32, sig: i32) -> LinuxResult<isize> {
-    let Some(sig) = make_siginfo(sig, SI_TKILL as u32)? else {
+pub fn sys_tgkill(tgid: Pid, tid: Pid, signo: u32) -> LinuxResult<isize> {
+    let Some(sig) = make_siginfo(signo, SI_TKILL)? else {
         // TODO: should also check permissions
         return Ok(0);
     };
 
-    let thr = get_thread(tid as Pid)?;
-    if thr.process().pid() != tgid as Pid {
+    send_signal_thread(find_thread_in_group(tgid, tid)?.as_ref(), sig)?;
+    Ok(0)
+}
+
+fn find_thread_in_group(tgid: Pid, tid: Pid) -> LinuxResult<Arc<Thread>> {
+    let thr = get_thread(tid)?;
+    if thr.process().pid() != tgid {
         return Err(LinuxError::ESRCH);
     }
-    send_signal_thread(&thr, sig);
+    Ok(thr)
+}
+
+fn make_queue_signal_info(
+    tgid: Pid,
+    signo: u32,
+    sig: UserConstPtr<SignalInfo>,
+) -> LinuxResult<SignalInfo> {
+    let signo = parse_signo(signo)?;
+    let mut sig = unsafe { sig.get()?.read() };
+    sig.set_signo(signo);
+    if current().task_ext().thread.process().pid() != tgid
+        && (sig.code() >= 0 || sig.code() == SI_TKILL)
+    {
+        return Err(LinuxError::EPERM);
+    }
+    Ok(sig)
+}
+
+pub fn sys_rt_sigqueueinfo(
+    tgid: Pid,
+    signo: u32,
+    sig: UserConstPtr<SignalInfo>,
+    sigsetsize: usize,
+) -> LinuxResult<isize> {
+    check_sigset_size(sigsetsize)?;
+
+    let sig = make_queue_signal_info(tgid, signo, sig)?;
+    send_signal_process(get_process(tgid)?.as_ref(), sig)?;
     Ok(0)
+}
+
+pub fn sys_rt_tgsigqueueinfo(
+    tgid: Pid,
+    tid: Pid,
+    signo: u32,
+    sig: UserConstPtr<SignalInfo>,
+    sigsetsize: usize,
+) -> LinuxResult<isize> {
+    check_sigset_size(sigsetsize)?;
+
+    let sig = make_queue_signal_info(tgid, signo, sig)?;
+    send_signal_thread(find_thread_in_group(tgid, tid)?.as_ref(), sig)?;
+    Ok(0)
+}
+
+pub fn sys_rt_sigreturn(tf: &mut TrapFrame) -> LinuxResult<isize> {
+    let curr = current();
+    curr.task_ext().thread_data().signal_manager.restore(tf);
+    Ok(tf.retval() as isize)
+}
+
+pub fn sys_rt_sigtimedwait(
+    set: UserConstPtr<SignalSet>,
+    info: UserPtr<siginfo>,
+    timeout: UserConstPtr<timespec>,
+    sigsetsize: usize,
+) -> LinuxResult<isize> {
+    check_sigset_size(sigsetsize)?;
+
+    let set = unsafe { *set.get()? };
+    let timeout: Option<Duration> = timeout
+        .nullable(UserConstPtr::get)?
+        .map(|ts| unsafe { *ts }.into());
+
+    let Some(sig) = current()
+        .task_ext()
+        .thread_data()
+        .signal_manager
+        .wait_timeout(set, timeout)
+    else {
+        return Err(LinuxError::EAGAIN);
+    };
+
+    if let Some(info) = info.nullable(UserPtr::get)? {
+        unsafe { *info = sig.0 };
+    }
+
+    Ok(0)
+}
+
+pub fn sys_rt_sigsuspend(
+    tf: &mut TrapFrame,
+    set: UserPtr<SignalSet>,
+    sigsetsize: usize,
+) -> LinuxResult<isize> {
+    check_sigset_size(sigsetsize)?;
+
+    let curr = current();
+    let thr_data = curr.task_ext().thread_data();
+    let mut set = unsafe { *set.get()? };
+
+    set.remove(Signo::SIGKILL);
+    set.remove(Signo::SIGSTOP);
+
+    let old_blocked = thr_data
+        .signal_manager
+        .with_blocked_mut(|blocked| mem::replace(blocked, set));
+
+    tf.set_retval(-LinuxError::EINTR.code() as usize);
+
+    loop {
+        if check_signals(tf, Some(old_blocked)) {
+            break;
+        }
+        curr.task_ext().process_data().signal_manager.wait_signal();
+    }
+
+    Ok(0)
+}
+
+pub fn sys_sigaltstack(
+    ss: UserConstPtr<SignalStack>,
+    old_ss: UserPtr<SignalStack>,
+) -> LinuxResult<isize> {
+    current()
+        .task_ext()
+        .thread_data()
+        .signal_manager
+        .with_stack_mut(|stack| {
+            if let Some(old_ss) = old_ss.nullable(UserPtr::get)? {
+                unsafe { *old_ss = stack.clone() };
+            }
+            if let Some(ss) = ss.nullable(UserConstPtr::get)? {
+                let ss = unsafe { ss.read() };
+                if ss.size <= MINSIGSTKSZ as usize {
+                    return Err(LinuxError::ENOMEM);
+                }
+                let stack_ptr: UserConstPtr<u8> = ss.sp.into();
+                let _ = stack_ptr.get_as_array(ss.size)?;
+
+                *stack = ss.clone();
+            }
+            Ok(0)
+        })
 }

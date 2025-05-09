@@ -1,11 +1,13 @@
+use axprocess::Pid;
+use axsignal::{SignalInfo, Signo};
+use axtask::{TaskExtRef, current};
+use linux_raw_sys::general::SI_KERNEL;
+use starry_core::task::ProcessData;
+
 use crate::{
     ptr::{PtrWrapper, UserPtr},
     send_signal_process, send_signal_thread,
 };
-use axprocess::Pid;
-use axsignal::SignalInfo;
-use axtask::{TaskExtRef, current};
-use linux_raw_sys::general::{SI_KERNEL, SIGCHLD, SIGKILL};
 
 pub fn do_exit(exit_code: i32, group_exit: bool) -> ! {
     let curr = current();
@@ -22,20 +24,25 @@ pub fn do_exit(exit_code: i32, group_exit: bool) -> ! {
 
     let process = thread.process();
     if thread.exit(exit_code) {
-        // TODO: send exit signal to parent
         process.exit();
         if let Some(parent) = process.parent() {
-            send_signal_process(&parent, SignalInfo::new(SIGCHLD.into(), SI_KERNEL));
+            if let Some(signo) = process.data::<ProcessData>().and_then(|it| it.exit_signal) {
+                let _ = send_signal_process(&parent, SignalInfo::new(signo, SI_KERNEL as _));
+            }
+            if let Some(data) = parent.data::<ProcessData>() {
+                data.child_exit_wq.notify_all(false)
+            }
         }
+
+        process.exit();
         // TODO: clear namespace resources
     }
     if group_exit && !process.is_group_exited() {
         process.group_exit();
-        let sig = SignalInfo::new(SIGKILL.into(), SI_KERNEL);
+        let sig = SignalInfo::new(Signo::SIGKILL, SI_KERNEL as _);
         for thr in process.threads() {
-            send_signal_thread(&thr, sig.clone());
+            let _ = send_signal_thread(&thr, sig.clone());
         }
-        // TODO: send SIGKILL to other threads
     }
     axtask::exit(exit_code)
 }

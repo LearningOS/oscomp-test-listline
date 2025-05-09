@@ -4,6 +4,7 @@ use core::{
     alloc::Layout,
     cell::RefCell,
     sync::atomic::{AtomicUsize, Ordering},
+    time::Duration,
 };
 
 use alloc::{
@@ -19,9 +20,9 @@ use axhal::{
 use axmm::{AddrSpace, kernel_aspace};
 use axns::{AxNamespace, AxNamespaceIf};
 use axprocess::{Pid, Process, ProcessGroup, Session, Thread};
-use axsignal::{ProcessSignalManager, ThreadSignalManager};
+use axsignal::{ProcessSignalManager, SignalActions, Signo, ThreadSignalManager};
 use axsync::{Mutex, RawMutex};
-use axtask::{TaskExtRef, TaskInner, current};
+use axtask::{TaskExtRef, TaskInner, WaitQueue, current};
 use memory_addr::VirtAddrRange;
 use spin::{Once, RwLock};
 use weak_map::WeakMap;
@@ -125,6 +126,28 @@ pub fn time_stat_output() -> (usize, usize, usize, usize) {
     )
 }
 
+#[doc(hidden)]
+pub struct WaitQueueWrapper(WaitQueue);
+impl Default for WaitQueueWrapper {
+    fn default() -> Self {
+        Self(WaitQueue::new())
+    }
+}
+impl axsignal::api::WaitQueue for WaitQueueWrapper {
+    fn wait_timeout(&self, timeout: Option<Duration>) -> bool {
+        if let Some(timeout) = timeout {
+            self.0.wait_timeout(timeout)
+        } else {
+            self.0.wait();
+            true
+        }
+    }
+
+    fn notify_one(&self) -> bool {
+        self.0.notify_one(false)
+    }
+}
+
 /// Extended data for [`Thread`].
 pub struct ThreadData {
     /// The clear thread tid field
@@ -135,16 +158,16 @@ pub struct ThreadData {
     pub clear_child_tid: AtomicUsize,
 
     /// The thread signal manager
-    pub signal_manager: ThreadSignalManager<RawMutex>,
+    pub signal_manager: ThreadSignalManager<RawMutex, WaitQueueWrapper>,
 }
 
 impl ThreadData {
     /// Create a new [`ThreadData`].
     #[allow(clippy::new_without_default)]
-    pub fn new(proc: Arc<ProcessSignalManager<RawMutex>>) -> Self {
+    pub fn new(proc: &ProcessData) -> Self {
         Self {
             clear_child_tid: AtomicUsize::new(0),
-            signal_manager: ThreadSignalManager::new(proc),
+            signal_manager: ThreadSignalManager::new(proc.signal_manager.clone()),
         }
     }
 
@@ -174,13 +197,22 @@ pub struct ProcessData {
     heap_top: AtomicUsize,
     /// The process resource limits
     pub rlimits: RwLock<Rlimits>,
+    /// The child exit wait queue
+    pub child_exit_wq: WaitQueue,
+    /// The exit signal of the thread
+    pub exit_signal: Option<Signo>,
     /// The process signal manager
-    pub signal_manager: Arc<ProcessSignalManager<RawMutex>>,
+    pub signal_manager: Arc<ProcessSignalManager<RawMutex, WaitQueueWrapper>>,
 }
 
 impl ProcessData {
     /// Create a new [`ProcessData`].
-    pub fn new(exe_path: String, aspace: Arc<Mutex<AddrSpace>>) -> Self {
+    pub fn new(
+        exe_path: String,
+        aspace: Arc<Mutex<AddrSpace>>,
+        signal_actions: Arc<Mutex<SignalActions>>,
+        exit_signal: Option<Signo>,
+    ) -> Self {
         Self {
             exe_path: RwLock::new(exe_path),
             aspace,
@@ -188,7 +220,12 @@ impl ProcessData {
             heap_bottom: AtomicUsize::new(axconfig::plat::USER_HEAP_BASE),
             heap_top: AtomicUsize::new(axconfig::plat::USER_HEAP_BASE),
             rlimits: RwLock::new(Rlimits::default()),
-            signal_manager: Arc::new(ProcessSignalManager::new()),
+            child_exit_wq: WaitQueue::new(),
+            exit_signal,
+            signal_manager: Arc::new(ProcessSignalManager::new(
+                signal_actions,
+                axconfig::plat::SIGNAL_TRAMPOLINE,
+            )),
         }
     }
 
@@ -210,6 +247,12 @@ impl ProcessData {
     /// Set the top address of the user heap.
     pub fn set_heap_top(&self, top: usize) {
         self.heap_top.store(top, Ordering::Release)
+    }
+
+    /// Linux manual: A "clone" child is one which delivers no signal, or a
+    /// signal other than SIGCHLD to its parent upon termination.
+    pub fn is_clone_child(&self) -> bool {
+        self.exit_signal != Some(Signo::SIGCHLD)
     }
 }
 

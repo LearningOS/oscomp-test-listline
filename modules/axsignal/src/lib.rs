@@ -5,12 +5,12 @@ extern crate log;
 extern crate alloc;
 
 mod action;
+pub mod api;
 pub mod arch;
-pub mod new_api;
 mod pending;
 mod types;
 
 pub use action::*;
-pub use new_api::*;
+pub use api::*;
 pub use pending::*;
 pub use types::*;

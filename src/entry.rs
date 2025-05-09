@@ -3,9 +3,10 @@ use arceos_posix_api::FD_TABLE;
 use axfs::{CURRENT_DIR, CURRENT_DIR_PATH, api::set_current_dir};
 use axhal::arch::UspaceContext;
 use axprocess::{Pid, init_proc};
+use axsignal::Signo;
 use axsync::Mutex;
 use starry_core::{
-    mm::{copy_from_kernel, load_user_app, new_user_aspace_empty},
+    mm::{copy_from_kernel, load_user_app, map_trampoline, new_user_aspace_empty},
     task::{ProcessData, TaskExt, ThreadData, add_thread_to_table, new_user_task},
 };
 
@@ -13,6 +14,7 @@ pub fn run_user_app(args: &[String], envs: &[String]) -> Option<i32> {
     let mut uspace = new_user_aspace_empty()
         .and_then(|mut it| {
             copy_from_kernel(&mut it)?;
+            map_trampoline(&mut it)?;
             Ok(it)
         })
         .expect("Failed to create user address space");
@@ -29,7 +31,12 @@ pub fn run_user_app(args: &[String], envs: &[String]) -> Option<i32> {
     let mut task = new_user_task(name, uctx, None);
     task.ctx_mut().set_page_table_root(uspace.page_table_root());
 
-    let process_data = ProcessData::new(exe_path, Arc::new(Mutex::new(uspace)));
+    let process_data = ProcessData::new(
+        exe_path,
+        Arc::new(Mutex::new(uspace)),
+        Arc::default(),
+        Some(Signo::SIGCHLD),
+    );
 
     FD_TABLE
         .deref_from(&process_data.ns)
@@ -42,12 +49,11 @@ pub fn run_user_app(args: &[String], envs: &[String]) -> Option<i32> {
         .init_new(CURRENT_DIR_PATH.copy_inner());
 
     let tid = task.id().as_u64() as Pid;
-    let signal_manager = process_data.signal_manager.clone();
     let process = init_proc().fork(tid).data(process_data).build();
 
     let thread = process
         .new_thread(tid)
-        .data(ThreadData::new(signal_manager))
+        .data(ThreadData::new(process.data().unwrap()))
         .build();
     add_thread_to_table(&thread);
 
