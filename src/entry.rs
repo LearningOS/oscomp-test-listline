@@ -45,7 +45,10 @@ pub fn run_user_app(args: &[String], envs: &[String]) -> Option<i32> {
     let signal_manager = process_data.signal_manager.clone();
     let process = init_proc().fork(tid).data(process_data).build();
 
-    let thread = process.new_thread(tid).data(ThreadData::new(signal_manager)).build();
+    let thread = process
+        .new_thread(tid)
+        .data(ThreadData::new(signal_manager))
+        .build();
     add_thread_to_table(&thread);
 
     task.init_task_ext(TaskExt::new(thread));

@@ -1,11 +1,13 @@
-use core::ffi::c_void;
-
 use axerrno::{LinuxError, LinuxResult};
-use axprocess::{Process, ProcessGroup, Pid};
-use axsignal::{SignalSet, Signo, SignalInfo};
+use axprocess::{Pid, Process, ProcessGroup, Thread};
+use axsignal::{SignalInfo, SignalSet, Signo};
 use axtask::{TaskExtRef, current};
-use linux_raw_sys::general::{kernel_sigaction, SI_USER};
-use starry_core::task::{ProcessData, get_process, processes, get_process_group};
+use linux_raw_sys::general::{
+    SI_TKILL, SI_USER, SIG_BLOCK, SIG_SETMASK, SIG_UNBLOCK, kernel_sigaction, timespec,
+};
+use starry_core::task::{
+    ProcessData, ThreadData, get_process, get_process_group, get_thread, processes,
+};
 
 use crate::ptr::{PtrWrapper, UserConstPtr, UserPtr};
 
@@ -17,12 +19,28 @@ pub fn check_sigsetsize(sigsetsize: usize) -> LinuxResult<()> {
 }
 
 pub fn sys_rt_sigprocmask(
-    _how: i32,
-    _set: UserConstPtr<c_void>,
-    _oldset: UserPtr<c_void>,
-    _sigsetsize: usize,
+    how: i32,
+    set: UserConstPtr<SignalSet>,
+    oldset: UserPtr<SignalSet>,
+    sigsetsize: usize,
 ) -> LinuxResult<isize> {
-    warn!("sys_rt_sigprocmask: not implemented");
+    check_sigsetsize(sigsetsize)?;
+
+    let curr = current();
+    let mut blocked = curr.task_ext().thread_data().signal_manager.blocked_lock();
+
+    if let Some(oldset) = oldset.nullable(|oldset| oldset.get())? {
+        unsafe { *oldset = *blocked };
+    }
+
+    if let Some(set) = set.nullable(|set| set.get())? {
+        match how as u32 {
+            SIG_BLOCK => unsafe { blocked.add_from(&*set) },
+            SIG_UNBLOCK => unsafe { blocked.remove_from(&*set) },
+            SIG_SETMASK => unsafe { *blocked = *set },
+            _ => return Err(LinuxError::EINVAL),
+        }
+    }
     Ok(0)
 }
 
@@ -55,16 +73,62 @@ pub fn sys_rt_sigaction(
     Ok(0)
 }
 
-pub fn sys_sigtimedwait(
-    _set: UserConstPtr<c_void>,
-    _timeout: UserConstPtr<c_void>,
-    _sigsetsize: usize,
+pub fn sys_rt_sigtimedwait(
+    set: UserConstPtr<SignalSet>,
+    info: UserPtr<SignalInfo>,
+    timeout: UserConstPtr<timespec>,
+    sigsetsize: usize,
 ) -> LinuxResult<isize> {
-    warn!("sys_sigtimedwait: not implemented");
-    Ok(0)
+    debug!("sys_rt_sigtimedwait");
+    check_sigsetsize(sigsetsize)?;
+
+    let set = set.nullable(|set| set.get())?;
+    if set.is_none() {
+        return Err(LinuxError::EINVAL);
+    }
+    let info_ptr = info.nullable(|info| info.get())?;
+
+    let timeout_duration = if let Some(timeout) = timeout.nullable(|timeout| timeout.get())? {
+        unsafe {
+            let seconds = (*timeout).tv_sec as u64;
+            let nanos = (*timeout).tv_nsec as u32;
+            Some(core::time::Duration::new(seconds, nanos))
+        }
+    } else {
+        None
+    };
+
+    let curr = current();
+    let thr_data = curr.task_ext().thread_data();
+
+    let siginfo = thr_data
+        .signal_manager
+        .wait_timeout(unsafe { *set.unwrap() }, timeout_duration);
+
+    match siginfo {
+        Some(sig) => {
+            if let Some(info_ptr) = info_ptr {
+                unsafe { *info_ptr = sig.clone() };
+            }
+            Ok(sig.signo() as isize)
+        }
+        None => Err(LinuxError::EAGAIN),
+    }
+}
+
+pub fn send_signal_thread(thread: &Thread, sig: SignalInfo) {
+    let Some(thread_data) = thread.data::<ThreadData>() else {
+        return;
+    };
+    thread_data.signal_manager.send_signal(sig);
 }
 
 pub fn send_signal_process(proc: &Process, sig: SignalInfo) {
+    info!(
+        "Send signal {} to process {}",
+        sig.signo() as i32,
+        proc.pid()
+    );
     let Some(proc_data) = proc.data::<ProcessData>() else {
         return;
     };
@@ -86,7 +150,7 @@ fn make_siginfo(signo: i32, code: u32) -> LinuxResult<Option<SignalInfo>> {
     if !(1..64).contains(&signo) {
         return Err(LinuxError::EINVAL);
     }
-    Ok(Some(SignalInfo::new(signo.into(), code.into())))
+    Ok(Some(SignalInfo::new(signo.into(), code)))
 }
 
 pub fn sys_kill(pid: i32, sig: i32) -> LinuxResult<isize> {
@@ -125,4 +189,28 @@ pub fn sys_kill(pid: i32, sig: i32) -> LinuxResult<isize> {
             Ok(count as isize)
         }
     }
+}
+
+pub fn sys_tkill(tid: i32, sig: i32) -> LinuxResult<isize> {
+    let Some(sig) = make_siginfo(sig, SI_USER)? else {
+        // TODO: should also check permissions
+        return Ok(0);
+    };
+    let thread = get_thread(tid as Pid)?;
+    send_signal_thread(&thread, sig);
+    Ok(0)
+}
+
+pub fn sys_tgkill(tgid: i32, tid: i32, sig: i32) -> LinuxResult<isize> {
+    let Some(sig) = make_siginfo(sig, SI_TKILL as u32)? else {
+        // TODO: should also check permissions
+        return Ok(0);
+    };
+
+    let thr = get_thread(tid as Pid)?;
+    if thr.process().pid() != tgid as Pid {
+        return Err(LinuxError::ESRCH);
+    }
+    send_signal_thread(&thr, sig);
+    Ok(0)
 }

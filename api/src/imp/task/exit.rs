@@ -1,7 +1,11 @@
+use crate::{
+    ptr::{PtrWrapper, UserPtr},
+    send_signal_process, send_signal_thread,
+};
 use axprocess::Pid;
+use axsignal::SignalInfo;
 use axtask::{TaskExtRef, current};
-
-use crate::ptr::{PtrWrapper, UserPtr};
+use linux_raw_sys::general::{SI_KERNEL, SIGCHLD, SIGKILL};
 
 pub fn do_exit(exit_code: i32, group_exit: bool) -> ! {
     let curr = current();
@@ -20,10 +24,17 @@ pub fn do_exit(exit_code: i32, group_exit: bool) -> ! {
     if thread.exit(exit_code) {
         // TODO: send exit signal to parent
         process.exit();
+        if let Some(parent) = process.parent() {
+            send_signal_process(&parent, SignalInfo::new(SIGCHLD.into(), SI_KERNEL));
+        }
         // TODO: clear namespace resources
     }
     if group_exit && !process.is_group_exited() {
         process.group_exit();
+        let sig = SignalInfo::new(SIGKILL.into(), SI_KERNEL);
+        for thr in process.threads() {
+            send_signal_thread(&thr, sig.clone());
+        }
         // TODO: send SIGKILL to other threads
     }
     axtask::exit(exit_code)

@@ -175,7 +175,7 @@ impl Signo {
 /// Signal set. Compatible with `struct sigset_t` in libc.
 #[derive(Default, Debug, Clone, Copy, Not, BitOr, BitOrAssign, BitAnd, BitAndAssign)]
 #[repr(transparent)]
-pub struct SignalSet(u64);
+pub struct SignalSet(pub u64);
 impl SignalSet {
     fn signo_bit(signo: Signo) -> u64 {
         1 << (signo as u8 - 1)
@@ -224,6 +224,16 @@ impl SignalSet {
         unsafe {
             *mem::transmute::<&mut kernel_sigset_t, &mut u64>(dest) = self.0;
         }
+    }
+
+    /// Adds all signals in `other` to this set.
+    pub fn add_from(&mut self, other: &SignalSet) {
+        self.0 |= other.0;
+    }
+
+    /// Removes all signals in `other` from this set.
+    pub fn remove_from(&mut self, other: &SignalSet) {
+        self.0 &= !other.0;
     }
 }
 

@@ -44,7 +44,7 @@ impl<M: RawMutex> ThreadSignalManager<M> {
             .dequeue_signal(mask)
             .or_else(|| self.proc.dequeue_signal(mask))
     }
-    
+
     fn handle_signal(
         &self,
         tf: &mut TrapFrame,
@@ -130,9 +130,7 @@ impl<M: RawMutex> ThreadSignalManager<M> {
         drop(blocked);
 
         loop {
-            let Some(sig) = self.dequeue_signal(&mask) else {
-                return None;
-            };
+            let sig = self.dequeue_signal(&mask)?;
             let action = &actions[sig.signo()];
             if let Some(os_action) = self.handle_signal(tf, restore_blocked, &sig, action) {
                 break Some((sig, os_action));
@@ -168,6 +166,13 @@ impl<M: RawMutex> ThreadSignalManager<M> {
     /// Applies a function to the blocked signals.
     pub fn with_blocked_mut<R>(&self, f: impl FnOnce(&mut SignalSet) -> R) -> R {
         f(&mut self.blocked.lock())
+    }
+
+    /// Gets a locked reference to the blocked signals.
+    ///
+    /// Returns a guard that will automatically release the lock when dropped.
+    pub fn blocked_lock(&self) -> lock_api::MutexGuard<'_, M, SignalSet> {
+        self.blocked.lock()
     }
 
     /// Gets the signal stack.

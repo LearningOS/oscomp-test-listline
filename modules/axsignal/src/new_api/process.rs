@@ -1,10 +1,10 @@
-use crate::{PendingSignals, SignalAction, Signo, SignalInfo, SignalSet};
-use lock_api::{Mutex, RawMutex};
+use crate::{PendingSignals, SignalAction, SignalInfo, SignalSet, Signo};
 use axtask::WaitQueue;
 use core::{
     array,
     ops::{Index, IndexMut},
 };
+use lock_api::{Mutex, RawMutex};
 
 /// Signal actions for a process.
 pub struct SignalActions(pub(crate) [SignalAction; 64]);
@@ -47,7 +47,7 @@ impl<M: RawMutex> ProcessSignalManager<M> {
             default_restorer: 0,
         }
     }
-    
+
     pub(crate) fn dequeue_signal(&self, mask: &SignalSet) -> Option<SignalInfo> {
         self.pending.lock().dequeue_signal(mask)
     }
