@@ -216,6 +216,12 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         Sysno::times => sys_times(tf.arg0().into()),
         Sysno::clock_gettime => sys_clock_gettime(tf.arg0() as _, tf.arg1().into()),
 
+        // hack
+        Sysno::futex => {
+            warn!("preventing pthread from blocking testing");
+            do_exit(linux_raw_sys::general::SIGSYS as _, true);
+        }
+
         _ => {
             warn!("Unimplemented syscall: {}", sysno);
             Err(LinuxError::ENOSYS)
