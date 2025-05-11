@@ -89,8 +89,6 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
 
         // pipe
         Sysno::pipe2 => sys_pipe2(tf.arg0().into(), tf.arg1() as _),
-        #[cfg(target_arch = "x86_64")]
-        Sysno::pipe => sys_pipe2(tf.arg0().into(), 0),
 
         // fs stat
         #[cfg(target_arch = "x86_64")]
@@ -222,6 +220,15 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
             do_exit(linux_raw_sys::general::SIGSYS as _, true);
         }
 
+        // resource
+        Sysno::getrlimit => sys_getrlimit(tf.arg0() as _, tf.arg1().into()),
+        Sysno::setrlimit => sys_setrlimit(tf.arg0() as _, tf.arg1().into()),
+        Sysno::prlimit64 => sys_prlimit64(
+            tf.arg0() as _,
+            tf.arg1() as _,
+            tf.arg2().into(),
+            tf.arg3().into(),
+        ),
         _ => {
             warn!("Unimplemented syscall: {}", sysno);
             Err(LinuxError::ENOSYS)

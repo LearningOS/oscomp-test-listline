@@ -13,4 +13,4 @@ pub mod sockaddr;
 pub mod time;
 
 mod imp;
-pub use imp::*;
+pub use {imp::*, signal::*};

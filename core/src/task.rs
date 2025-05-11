@@ -207,6 +207,9 @@ pub struct ProcessData {
 
     /// The process signal manager
     pub signal: Arc<ProcessSignalManager<RawMutex, WaitQueueWrapper>>,
+
+    /// resource limits
+    pub rlimits: RwLock<Rlimits>,
 }
 
 impl ProcessData {
@@ -231,6 +234,8 @@ impl ProcessData {
                 signal_actions,
                 axconfig::plat::SIGNAL_TRAMPOLINE,
             )),
+
+            rlimits: RwLock::new(Rlimits::default()),
         }
     }
 

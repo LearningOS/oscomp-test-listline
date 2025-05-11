@@ -26,7 +26,3 @@ pub fn sys_pipe2(fds: UserPtr<[c_int; 2]>, flags: i32) -> LinuxResult<isize> {
     info!("sys_pipe2 <= fds: {:?}", fds);
     Ok(0)
 }
-
-pub fn sys_pipe(fds: UserPtr<i32>) -> LinuxResult<isize> {
-    sys_pipe2(fds)
-}

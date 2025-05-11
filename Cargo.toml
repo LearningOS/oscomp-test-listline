@@ -68,7 +68,7 @@ lwext4_rs = ["axfeat/lwext4_rs"]
 
 [dependencies]
 axfeat.workspace = true
-
+axconfig.workspace = true
 axfs.workspace = true
 axhal.workspace = true
 axlog.workspace = true
