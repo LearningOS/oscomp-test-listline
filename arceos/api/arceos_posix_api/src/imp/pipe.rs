@@ -112,7 +112,6 @@ impl FileLike for Pipe {
             return Err(LinuxError::EPERM);
         }
         let mut read_size = 0usize;
-        let max_len = buf.len();
         loop {
             let mut ring_buffer = self.buffer.lock();
             let loop_read = ring_buffer.available_read();
@@ -126,11 +125,11 @@ impl FileLike for Pipe {
                 continue;
             }
             for _ in 0..loop_read {
-                if read_size == max_len {
-                    return Ok(read_size);
-                }
                 buf[read_size] = ring_buffer.read_byte();
                 read_size += 1;
+                if read_size == loop_read {
+                    return Ok(read_size);
+                }
             }
         }
     }

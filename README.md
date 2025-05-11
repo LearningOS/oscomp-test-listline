@@ -421,6 +421,8 @@ int send_signal(int sig, struct kernel_siginfo *info, struct task_struct *t,
 
 ## Futex
 
+
+
 ## ArceOS change
 
 ### axhal
@@ -434,3 +436,14 @@ pub use self::context::{TaskContext, TrapFrame, GeneralRegisters};
 
 - C类型使用混乱，调用core::ffi，linux_raw_sys，如果要调用areaos_posix_api，还需要调用areos_posix_api中的ctypes
 - 同步原语使用混乱，axsync，spin，lock_api(axsignal)
+
+# Testcases
+
+## libc
+
+## musl
+
+#### fscanf
+
+fdopen->__fdopen
+
