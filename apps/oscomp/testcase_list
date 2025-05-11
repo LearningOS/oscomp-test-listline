@@ -1,1 +1,1 @@
-/musl/busybox sh /musl/libctest_testcode.sh
+/musl/busybox sh /musl/busybox_testcode.sh

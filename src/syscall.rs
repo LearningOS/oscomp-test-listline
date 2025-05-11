@@ -60,22 +60,22 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
             tf.arg3() as _,
         ),
         Sysno::lseek => sys_lseek(tf.arg0() as _, tf.arg1() as _, tf.arg2() as _),
-        Sysno::sendfile => sys_sendfile(
-            tf.arg0() as _,
-            tf.arg1() as _,
-            tf.arg2().into(),
-            tf.arg3() as _,
-        ),
+        // Sysno::sendfile => sys_sendfile(
+        //     tf.arg0() as _,
+        //     tf.arg1() as _,
+        //     tf.arg2().into(),
+        //     tf.arg3() as _,
+        // ),
 
         // io mpx
-        #[cfg(target_arch = "x86_64")]
-        Sysno::poll => sys_poll(tf.arg0().into(), tf.arg1() as _, tf.arg2() as _),
-        Sysno::ppoll => sys_ppoll(
-            tf.arg0().into(),
-            tf.arg1() as _,
-            tf.arg2().into(),
-            tf.arg3().into(),
-        ),
+        // #[cfg(target_arch = "x86_64")]
+        // Sysno::poll => sys_poll(tf.arg0().into(), tf.arg1() as _, tf.arg2() as _),
+        // Sysno::ppoll => sys_ppoll(
+        //     tf.arg0().into(),
+        //     tf.arg1() as _,
+        //     tf.arg2().into(),
+        //     tf.arg3().into(),
+        // ),
 
         // fs mount
         Sysno::mount => sys_mount(

@@ -415,11 +415,11 @@ dependencies = [
 [[package]]
 name = "axsignal"
 version = "0.1.0"
+source = "git+https://github.com/Starry-OS/axsignal.git?rev=b5b6089#b5b6089c40a989ff8ae434ec32ea388b7a9d7a11"
 dependencies = [
  "axconfig",
  "axerrno",
  "axhal",
- "axsync",
  "axtask",
  "bitflags 2.9.0",
  "cfg-if",
