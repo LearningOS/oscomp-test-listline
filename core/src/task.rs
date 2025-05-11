@@ -20,7 +20,10 @@ use axhal::{
 use axmm::{AddrSpace, kernel_aspace};
 use axns::{AxNamespace, AxNamespaceIf};
 use axprocess::{Pid, Process, ProcessGroup, Session, Thread};
-use axsignal::{ProcessSignalManager, SignalActions, Signo, ThreadSignalManager};
+use axsignal::{
+    Signo,
+    api::{ProcessSignalManager, SignalActions, ThreadSignalManager},
+};
 use axsync::{Mutex, RawMutex};
 use axtask::{TaskExtRef, TaskInner, WaitQueue, current};
 use memory_addr::VirtAddrRange;
@@ -157,8 +160,8 @@ pub struct ThreadData {
     /// When the thread exits, the kernel clears the word at this address if it is not NULL.
     pub clear_child_tid: AtomicUsize,
 
-    /// The thread signal manager
-    pub signal_manager: ThreadSignalManager<RawMutex, WaitQueueWrapper>,
+    /// The thread-level signal manager
+    pub signal: ThreadSignalManager<RawMutex, WaitQueueWrapper>,
 }
 
 impl ThreadData {
@@ -167,7 +170,8 @@ impl ThreadData {
     pub fn new(proc: &ProcessData) -> Self {
         Self {
             clear_child_tid: AtomicUsize::new(0),
-            signal_manager: ThreadSignalManager::new(proc.signal_manager.clone()),
+
+            signal: ThreadSignalManager::new(proc.signal.clone()),
         }
     }
 
@@ -195,14 +199,14 @@ pub struct ProcessData {
     heap_bottom: AtomicUsize,
     /// The user heap top
     heap_top: AtomicUsize,
-    /// The process resource limits
-    pub rlimits: RwLock<Rlimits>,
+
     /// The child exit wait queue
     pub child_exit_wq: WaitQueue,
     /// The exit signal of the thread
     pub exit_signal: Option<Signo>,
+
     /// The process signal manager
-    pub signal_manager: Arc<ProcessSignalManager<RawMutex, WaitQueueWrapper>>,
+    pub signal: Arc<ProcessSignalManager<RawMutex, WaitQueueWrapper>>,
 }
 
 impl ProcessData {
@@ -219,10 +223,11 @@ impl ProcessData {
             ns: AxNamespace::new_thread_local(),
             heap_bottom: AtomicUsize::new(axconfig::plat::USER_HEAP_BASE),
             heap_top: AtomicUsize::new(axconfig::plat::USER_HEAP_BASE),
-            rlimits: RwLock::new(Rlimits::default()),
+
             child_exit_wq: WaitQueue::new(),
             exit_signal,
-            signal_manager: Arc::new(ProcessSignalManager::new(
+
+            signal: Arc::new(ProcessSignalManager::new(
                 signal_actions,
                 axconfig::plat::SIGNAL_TRAMPOLINE,
             )),
@@ -324,30 +329,27 @@ pub fn add_thread_to_table(thread: &Arc<Thread>) {
     session_table.insert(session.sid(), &session);
 }
 
-/// Get all processes.
+/// Lists all processes.
 pub fn processes() -> Vec<Arc<Process>> {
     PROCESS_TABLE.read().values().collect()
 }
 
-/// Get the [`Thread`] associated with the given tid.
+/// Finds the thread with the given TID.
 pub fn get_thread(tid: Pid) -> LinuxResult<Arc<Thread>> {
     THREAD_TABLE.read().get(&tid).ok_or(LinuxError::ESRCH)
 }
-
-/// Get the [`Process`] associated with the given pid.
+/// Finds the process with the given PID.
 pub fn get_process(pid: Pid) -> LinuxResult<Arc<Process>> {
     PROCESS_TABLE.read().get(&pid).ok_or(LinuxError::ESRCH)
 }
-
-/// Get the [`ProcessGroup`] associated with the given pgid.
+/// Finds the process group with the given PGID.
 pub fn get_process_group(pgid: Pid) -> LinuxResult<Arc<ProcessGroup>> {
     PROCESS_GROUP_TABLE
         .read()
         .get(&pgid)
         .ok_or(LinuxError::ESRCH)
 }
-
-/// Get the [`Session`] associated with the given sid.
+/// Finds the session with the given SID.
 pub fn get_session(sid: Pid) -> LinuxResult<Arc<Session>> {
     SESSION_TABLE.read().get(&sid).ok_or(LinuxError::ESRCH)
 }

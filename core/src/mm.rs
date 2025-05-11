@@ -41,6 +41,7 @@ pub fn map_trampoline(aspace: &mut AddrSpace) -> AxResult {
     )?;
     Ok(())
 }
+
 /// Map the elf file to the user address space.
 ///
 /// # Arguments
