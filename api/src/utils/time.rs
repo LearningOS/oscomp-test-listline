@@ -1,5 +1,5 @@
-use axhal::time::TimeValue;
-use linux_raw_sys::general::{timespec, timeval};
+pub use axhal::time::TimeValue;
+pub use linux_raw_sys::general::{timespec, timeval};
 
 pub fn timevalue_to_timespec(tv: TimeValue) -> timespec {
     timespec {

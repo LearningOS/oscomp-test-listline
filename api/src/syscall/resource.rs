@@ -78,7 +78,10 @@ pub fn sys_prlimit64(
         if new_limit.rlim_max <= limit.max {
             limit.max = new_limit.rlim_max;
         } else {
-            debug!("new_limit.rlim_max: {}, limit.max: {}", new_limit.rlim_max, limit.max);
+            debug!(
+                "new_limit.rlim_max: {}, limit.max: {}",
+                new_limit.rlim_max, limit.max
+            );
             return Err(LinuxError::EPERM);
         }
 

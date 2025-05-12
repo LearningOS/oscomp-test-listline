@@ -215,6 +215,12 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         Sysno::gettimeofday => sys_get_time_of_day(tf.arg0().into()),
         Sysno::times => sys_times(tf.arg0().into()),
         Sysno::clock_gettime => sys_clock_gettime(tf.arg0() as _, tf.arg1().into()),
+        Sysno::utimensat => sys_utimensat(
+            tf.arg0() as _,
+            tf.arg1().into(),
+            tf.arg2().into(),
+            tf.arg3() as _,
+        ),
 
         // hack
         Sysno::futex => {

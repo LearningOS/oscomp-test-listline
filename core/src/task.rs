@@ -240,17 +240,6 @@ impl ProcessData {
         }
     }
 
-    /// Create a new [`ProcessData`] with specified resource limits.
-    pub fn new_with_rlimits(
-        exe_path: String,
-        aspace: Arc<Mutex<AddrSpace>>,
-        signal_actions: Arc<Mutex<SignalActions>>,
-        exit_signal: Option<Signo>,
-        rlimits: Rlimits,
-    ) -> Self {
-        Self::new(exe_path, aspace, signal_actions, exit_signal, Some(rlimits))
-    }
-
     /// Get the bottom address of the user heap.
     pub fn get_heap_bottom(&self) -> usize {
         self.heap_bottom.load(Ordering::Acquire)

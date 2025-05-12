@@ -1,13 +1,13 @@
+use core::ffi::c_char;
+
 use axerrno::{LinuxError, LinuxResult};
 use axhal::time::{monotonic_time, monotonic_time_nanos, nanos_to_ticks, wall_time};
-use linux_raw_sys::general::{
-    __kernel_clockid_t, CLOCK_MONOTONIC, CLOCK_REALTIME, timespec, timeval,
-};
+use linux_raw_sys::general::{__kernel_clockid_t, CLOCK_MONOTONIC, CLOCK_REALTIME};
 use starry_core::task::time_stat_output;
 
 use crate::{
-    ptr::UserPtr,
-    time::{timevalue_to_timespec, timevalue_to_timeval},
+    ptr::{UserConstPtr, UserPtr},
+    time::*,
 };
 
 pub fn sys_clock_gettime(
@@ -55,4 +55,15 @@ pub fn sys_times(tms: UserPtr<Tms>) -> LinuxResult<isize> {
         tms_cstime: stime_us,
     };
     Ok(nanos_to_ticks(monotonic_time_nanos()) as _)
+}
+
+pub fn sys_utimensat(
+    _dirfd: i32,
+    _path: UserConstPtr<c_char>,
+    _times: UserConstPtr<timespec>,
+    _flags: i32,
+) -> LinuxResult<isize> {
+    // TODO: Fix stat ralated structure and implementation
+    warn!("sys_utimensat not implemented");
+    Ok(0)
 }
