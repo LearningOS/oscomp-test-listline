@@ -9,8 +9,9 @@ use alloc::{sync::Arc, vec::Vec};
 use axerrno::{LinuxError, LinuxResult};
 use axio::PollState;
 use axns::{ResArc, def_resource};
+use axtask::{TaskExtRef, current};
 use flatten_objects::FlattenObjects;
-use linux_raw_sys::general::{stat, statx};
+use linux_raw_sys::general::{RLIMIT_NOFILE, stat, statx};
 use spin::RwLock;
 
 pub use self::{
@@ -145,6 +146,17 @@ pub fn get_file_like(fd: c_int) -> LinuxResult<Arc<dyn FileLike>> {
 
 /// Add a file to the file descriptor table.
 pub fn add_file_like(f: Arc<dyn FileLike>) -> LinuxResult<c_int> {
+    let curr = current();
+    // Check RLIMIT_NOFILE resource limit
+    let rlimits = curr.task_ext().process_data().rlimits.read();
+    let fd_limit = rlimits[RLIMIT_NOFILE].current as usize;
+
+    // Check if we already have too many open files
+    let fd_count = FD_TABLE.read().count();
+    if fd_count >= fd_limit {
+        return Err(LinuxError::EMFILE);
+    }
+
     Ok(FD_TABLE.write().add(f).map_err(|_| LinuxError::EMFILE)? as c_int)
 }
 

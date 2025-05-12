@@ -173,6 +173,7 @@ pub fn sys_clone(
             aspace,
             signal_actions,
             exit_signal,
+            Some(curr.task_ext().process_data().rlimits.read().clone()),
         );
 
         if flags.contains(CloneFlags::FILES) {

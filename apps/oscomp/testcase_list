@@ -1,1 +1,5 @@
-/musl/busybox sh /musl/busybox_testcode.sh
+/musl/busybox echo "#### OS COMP TEST GROUP START libctest-glibc ####"
+/musl/busybox echo "#### OS COMP TEST GROUP START libctest-musl ####"
+/musl/runtest.exe -w entry-static.exe rlimit_open_files
+/musl/busybox echo "#### OS COMP TEST GROUP END libctest-musl ####"
+/musl/busybox echo "#### OS COMP TEST GROUP END libctest-glibc ####"

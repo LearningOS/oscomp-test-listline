@@ -36,6 +36,7 @@ pub fn run_user_app(args: &[String], envs: &[String]) -> Option<i32> {
         Arc::new(Mutex::new(uspace)),
         Arc::default(),
         Some(Signo::SIGCHLD),
+        None,
     );
 
     FD_TABLE

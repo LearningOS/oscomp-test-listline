@@ -52,6 +52,7 @@ pub fn sys_prlimit64(
     new_limit: UserConstPtr<rlimit64>,
     old_limit: UserPtr<rlimit64>,
 ) -> LinuxResult<isize> {
+    debug!("resource: {}", resource);
     if resource >= RLIM_NLIMITS {
         return Err(LinuxError::EINVAL);
     }
@@ -77,6 +78,7 @@ pub fn sys_prlimit64(
         if new_limit.rlim_max <= limit.max {
             limit.max = new_limit.rlim_max;
         } else {
+            debug!("new_limit.rlim_max: {}, limit.max: {}", new_limit.rlim_max, limit.max);
             return Err(LinuxError::EPERM);
         }
 
