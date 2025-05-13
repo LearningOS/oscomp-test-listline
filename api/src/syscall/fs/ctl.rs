@@ -2,6 +2,7 @@ use core::ffi::{c_char, c_int, c_void};
 
 use alloc::ffi::CString;
 use axerrno::{LinuxError, LinuxResult};
+use axtask::{TaskExtRef, current};
 use linux_raw_sys::general::{__kernel_ino_t, __kernel_off_t, AT_FDCWD, AT_REMOVEDIR};
 
 use crate::{
@@ -305,4 +306,51 @@ pub fn sys_getcwd(buf: UserPtr<u8>, size: usize) -> LinuxResult<isize> {
     } else {
         Err(LinuxError::ERANGE)
     }
+}
+
+pub fn sys_readlinkat(
+    dirfd: c_int,
+    path: UserConstPtr<c_char>,
+    buf: UserPtr<u8>,
+    size: usize,
+) -> LinuxResult<isize> {
+    let path = path.get_as_str()?;
+    debug!(
+        "sys_readlinkat <= dirfd: {}, path: {}, size: {}",
+        dirfd, path, size
+    );
+
+    let path = handle_file_path(dirfd, path)?;
+
+    // Get the target path for the symlink
+    let link = if path.as_str() == "/proc/self/exe" {
+        let curr = current();
+        let exe_path = curr.task_ext().process_data().exe_path.read();
+        debug!("exe_path: {:?}", exe_path);
+        exe_path.clone()
+    } else {
+        let real_path = HARDLINK_MANAGER.real_path(path.as_str());
+        if real_path == path.as_str() {
+            return Err(LinuxError::EINVAL);
+        }
+        real_path
+    };
+
+    // Copy the link target path to the user buffer
+    if let Some(buf) = nullable!(buf.get_as_mut_slice(size))? {
+        let bytes = link.as_bytes();
+        let len = size.min(bytes.len());
+        buf[..len].copy_from_slice(&bytes[..len]);
+        Ok(len as isize)
+    } else {
+        Ok(link.len() as isize)
+    }
+}
+
+pub fn sys_readlink(
+    path: UserConstPtr<c_char>,
+    buf: UserPtr<u8>,
+    size: usize,
+) -> LinuxResult<isize> {
+    sys_readlinkat(AT_FDCWD, path, buf, size)
 }

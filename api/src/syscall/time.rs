@@ -36,13 +36,13 @@ pub fn sys_get_time_of_day(ts: UserPtr<timeval>) -> LinuxResult<isize> {
 
 #[repr(C)]
 pub struct Tms {
-    /// 进程用户态执行时间，单位为us
+    /// Process user mode execution time in microseconds
     tms_utime: usize,
-    /// 进程内核态执行时间，单位为us
+    /// Process kernel mode execution time in microseconds
     tms_stime: usize,
-    /// 子进程用户态执行时间和，单位为us
+    /// Sum of child processes' user mode execution time in microseconds
     tms_cutime: usize,
-    /// 子进程内核态执行时间和，单位为us
+    /// Sum of child processes' kernel mode execution time in microseconds
     tms_cstime: usize,
 }
 

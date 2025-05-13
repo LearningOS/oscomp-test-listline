@@ -44,3 +44,8 @@ pub fn sys_uname(name: UserPtr<new_utsname>) -> LinuxResult<isize> {
     *name.get_as_mut()? = UTSNAME;
     Ok(0)
 }
+
+pub fn sys_getrandom(_buf: UserPtr<u8>, _len: usize, _flags: u32) -> LinuxResult<isize> {
+    warn!("getrandom is not implemented");
+    Ok(0)
+}

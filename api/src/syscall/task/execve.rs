@@ -2,6 +2,7 @@ use core::ffi::c_char;
 
 use alloc::{string::ToString, vec::Vec};
 use axerrno::{LinuxError, LinuxResult};
+use axfs::api::canonicalize;
 use axhal::arch::UspaceContext;
 use axtask::{TaskExtRef, current};
 use starry_core::mm::{load_user_app, map_trampoline};
@@ -56,7 +57,7 @@ pub fn sys_execve(
         .rsplit_once('/')
         .map_or(path.as_str(), |(_, name)| name);
     curr.set_name(name);
-    *curr_ext.process_data().exe_path.write() = path;
+    *curr_ext.process_data().exe_path.write() = canonicalize(path.as_str())?;
 
     // TODO: fd close-on-exec
 

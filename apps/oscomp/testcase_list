@@ -1,1 +1,1 @@
-/musl/busybox sh /musl/libctest_testcode.sh
+/glibc/runtest.exe -w entry-static.exe clocale_mbfuncs

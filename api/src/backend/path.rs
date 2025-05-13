@@ -11,19 +11,19 @@ use spin::RwLock;
 
 use crate::file::{Directory, File, FileLike};
 
-/// 一个规范化的文件路径表示
+/// A normalized file path representation
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub struct FilePath(String);
 
 impl FilePath {
-    /// 从路径字符串创建一个新的 `FilePath`，路径将被规范化。
-    /// 输入路径可以是绝对路径或相对路径。
+    /// Create a new `FilePath` from a path string, the path will be normalized.
+    /// The input path can be an absolute path or a relative path.
     pub fn new<P: AsRef<str>>(path: P) -> AxResult<Self> {
         let path = path.as_ref();
         let canonical = canonicalize(path).map_err(|_| AxError::NotFound)?;
         let mut new_path = canonical.trim().to_string();
 
-        // 如果原始路径以 '/' 结尾，那么规范化后的路径也应以 '/' 结尾
+        // If the original path ends with '/', then the normalized path should also end with '/'
         if path.ends_with('/') && !new_path.ends_with('/') {
             new_path.push('/');
         }
@@ -36,18 +36,18 @@ impl FilePath {
         Ok(Self(HARDLINK_MANAGER.real_path(&new_path)))
     }
 
-    /// 返回底层路径的字符串切片
+    /// Returns a string slice of the underlying path
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
-    /// 返回父目录路径
+    /// Returns the parent directory path
     pub fn parent(&self) -> AxResult<&str> {
         if self.is_root() {
             return Ok("/");
         }
 
-        // 查找最后一个斜杠，考虑可能的尾部斜杠
+        // Find the last slash, considering possible trailing slash
         let mut path = self.as_str();
         if path.ends_with('/') {
             path = path.strip_suffix('/').unwrap();
@@ -57,7 +57,7 @@ impl FilePath {
         Ok(&path[..=pos])
     }
 
-    /// 返回文件名或目录名组件
+    /// Returns the file or directory name component
     pub fn name(&self) -> AxResult<&str> {
         if self.is_root() {
             return Ok("/");
@@ -77,17 +77,17 @@ impl FilePath {
         Ok(&path[start_pos + 1..end_pos])
     }
 
-    /// 判断是否为根目录
+    /// Check if it's the root directory
     pub fn is_root(&self) -> bool {
         self.0 == "/"
     }
 
-    /// 判断是否为目录（以 '/' 结尾）
+    /// Check if it's a directory (ends with '/')
     pub fn is_dir(&self) -> bool {
         self.0.ends_with('/')
     }
 
-    /// 判断是否为常规文件（不以 '/' 结尾）
+    /// Check if it's a regular file (doesn't end with '/')
     pub fn is_file(&self) -> bool {
         !self.is_dir()
     }
@@ -97,17 +97,17 @@ impl FilePath {
         axfs::api::absolute_path_exists(&self.0)
     }
 
-    /// 判断此路径是否以给定前缀路径开头
+    /// Check if this path starts with the given prefix path
     pub fn starts_with(&self, prefix: &FilePath) -> bool {
         self.0.starts_with(&prefix.0)
     }
 
-    /// 判断此路径是否以给定后缀路径结尾
+    /// Check if this path ends with the given suffix path
     pub fn ends_with(&self, suffix: &FilePath) -> bool {
         self.0.ends_with(&suffix.0)
     }
 
-    /// 将此路径与相对路径组件连接
+    /// Join this path with a relative path component
     pub fn join<P: AsRef<str>>(&self, path: P) -> AxResult<Self> {
         let mut new_path = self.0.clone();
         if !new_path.ends_with('/') {
@@ -117,7 +117,7 @@ impl FilePath {
         FilePath::new(new_path)
     }
 
-    /// 返回此路径组件的迭代器
+    /// Returns an iterator of the path components
     pub fn components(&self) -> impl Iterator<Item = &str> {
         self.0.trim_matches('/').split('/')
     }
@@ -149,13 +149,13 @@ impl Deref for FilePath {
     }
 }
 
-/// 错误类型
+/// Error types
 #[derive(Debug)]
 pub enum LinkError {
-    LinkExists,  // 链接已存在
-    InvalidPath, // 无效路径
-    NotFound,    // 文件不存在
-    NotFile,     // 不是文件
+    LinkExists,  // Link already exists
+    InvalidPath, // Invalid path
+    NotFound,    // File not found
+    NotFile,     // Not a file
 }
 
 impl From<LinkError> for AxError {
@@ -187,7 +187,7 @@ struct LinkManagerInner {
     ref_counts: BTreeMap<String, usize>,
 }
 
-// 关于innner的操作都在atomic_开头的函数中
+// All operations on inner are in atomic_prefixed functions
 impl HardlinkManager {
     const fn new() -> Self {
         Self {
@@ -198,9 +198,9 @@ impl HardlinkManager {
         }
     }
 
-    /// 创建链接
-    /// 如果目标路径不存在，则返回 `LinkError::NotFound`
-    /// 如果目标路径不是文件，则返回 `LinkError::NotFile`
+    /// Create a link
+    /// Returns `LinkError::NotFound` if the target path doesn't exist
+    /// Returns `LinkError::NotFile` if the target path is not a file
     pub fn create_link(&self, src: &FilePath, dst: &FilePath) -> Result<(), LinkError> {
         if !dst.exists() {
             return Err(LinkError::NotFound);
@@ -214,10 +214,10 @@ impl HardlinkManager {
         Ok(())
     }
 
-    /// 移除链接
-    /// 链接数量为零 或 没有链接时， 删除文件
-    /// 如果路径对应的链接不存在 或 路径对应的文件不存在，则返回 `None`
-    /// 否则返回链接的目标路径
+    /// Remove a link
+    /// Delete the file when link count is zero or no links exist
+    /// Returns `None` if the path has no link or the file doesn't exist
+    /// Otherwise returns the target path of the link
     pub fn remove_link(&self, src: &FilePath) -> Option<String> {
         let mut inner = self.inner.write();
         self.atomic_link_remove(&mut inner, src).or_else(|| {
@@ -245,11 +245,11 @@ impl HardlinkManager {
             .unwrap_or_else(|| if path.exists() { 1 } else { 0 })
     }
 
-    // 原子操作helpers
+    // Atomic operation helpers
 
-    /// 创建或更新链接
-    /// 如果链接已存在，则更新目标路径
-    /// 如果目标路径不存在，则返回 `LinkError::NotFound`
+    /// Create or update a link
+    /// If the link already exists, update the target path
+    /// Returns `LinkError::NotFound` if the target path doesn't exist
     fn atomic_link_update(&self, inner: &mut LinkManagerInner, src: &FilePath, dst: &FilePath) {
         if let Some(old_dst) = inner.links.get(src.as_str()) {
             if old_dst == dst.as_str() {
@@ -261,17 +261,17 @@ impl HardlinkManager {
         *inner.ref_counts.entry(dst.to_string()).or_insert(0) += 1;
     }
 
-    /// 移除链接
-    /// 如果链接不存在，则返回 `None`，否则返回链接的目标路径
+    /// Remove a link
+    /// Returns `None` if the link doesn't exist, otherwise returns the target path of the link
     fn atomic_link_remove(&self, inner: &mut LinkManagerInner, src: &FilePath) -> Option<String> {
         inner.links.remove(src.as_str()).inspect(|dst| {
             self.decrease_ref_count(inner, dst);
         })
     }
 
-    /// 减少引用计数
-    /// 如果引用计数为零，则删除链接，并删除文件，如果删除文件失败，则返回 `None`
-    /// 如果链接不存在，则返回 `None`
+    /// Decrease reference count
+    /// If reference count is zero, delete the link and file. Returns `None` if deleting file fails
+    /// Returns `None` if the link doesn't exist
     fn decrease_ref_count(&self, inner: &mut LinkManagerInner, path: &str) -> Option<()> {
         match inner.ref_counts.get_mut(path) {
             Some(count) => {
