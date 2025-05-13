@@ -56,14 +56,3 @@ pub fn sys_times(tms: UserPtr<Tms>) -> LinuxResult<isize> {
     };
     Ok(nanos_to_ticks(monotonic_time_nanos()) as _)
 }
-
-pub fn sys_utimensat(
-    _dirfd: i32,
-    _path: UserConstPtr<c_char>,
-    _times: UserConstPtr<timespec>,
-    _flags: i32,
-) -> LinuxResult<isize> {
-    // TODO: Fix stat ralated structure and implementation
-    warn!("sys_utimensat not implemented");
-    Ok(0)
-}

@@ -32,4 +32,8 @@ oscomp_run: ax_root defconfig
 	$(call load_img)
 	$(MAKE) AX_TESTCASE=oscomp BLK=y NET=y FEATURES=fp_simd,lwext4_rs LOG=$(LOG) run
 
+oscomp_debug: ax_root defconfig
+	$(call load_img)
+	$(MAKE) AX_TESTCASE=oscomp BLK=y NET=y FEATURES=fp_simd,lwext4_rs LOG=$(LOG) debug
+
 .PHONY: oscomp_binary oscomp_build oscomp_test oscomp_run

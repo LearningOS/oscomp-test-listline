@@ -441,9 +441,28 @@ pub use self::context::{TaskContext, TrapFrame, GeneralRegisters};
 
 ## libc
 
-## musl
+### musl
 
-#### fscanf
+- all
+  - pthread related
+  - socket
 
-fdopen->__fdopen
+- x86_64:
+
+  - fwscanf
+
+  - snprintf
+  - sscanf/sscanf_long
+  - strtod/strtod_simple/strtof/strtold
+  - swprintf
+  - fpclassify_invalid_ld80
+  - printf_1e9_oob/printf_fmt_g_round/printf_fmt_g_zeros/sscanf_eof
+
+x86的部分测例在本地也无法通过，考虑是测例本身的问题
+
+### glibc
+
+- all
+
+
 

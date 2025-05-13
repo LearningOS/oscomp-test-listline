@@ -13,3 +13,4 @@ apps/*/build/
 /extern
 /diff
 /log*
+.gdb_history

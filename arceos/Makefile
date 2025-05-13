@@ -130,7 +130,7 @@ LD := rust-lld -flavor gnu
 
 OBJDUMP ?= rust-objdump -d --print-imm-hex --x86-asm-syntax=intel
 OBJCOPY ?= rust-objcopy --binary-architecture=$(ARCH)
-GDB ?= gdb-multiarch
+GDB ?= gdb
 
 # Paths
 OUT_DIR ?= $(APP)
@@ -180,6 +180,7 @@ debug: build
 	$(GDB) $(OUT_ELF) \
 	  -ex 'target remote localhost:1234' \
 	  -ex 'b rust_entry' \
+	  -ex 'b rust_main' \
 	  -ex 'continue' \
 	  -ex 'disp /16i $$pc'
 

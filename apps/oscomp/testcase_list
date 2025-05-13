@@ -1,1 +1,1 @@
-/glibc/runtest.exe -w entry-static.exe clocale_mbfuncs
+/musl/basic/brk

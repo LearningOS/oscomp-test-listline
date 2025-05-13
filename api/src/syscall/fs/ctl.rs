@@ -3,7 +3,7 @@ use core::ffi::{c_char, c_int, c_void};
 use alloc::ffi::CString;
 use axerrno::{LinuxError, LinuxResult};
 use axtask::{TaskExtRef, current};
-use linux_raw_sys::general::{__kernel_ino_t, __kernel_off_t, AT_FDCWD, AT_REMOVEDIR};
+use linux_raw_sys::general::{__kernel_ino_t, __kernel_off_t, AT_FDCWD, AT_REMOVEDIR, timespec};
 
 use crate::{
     file::{Directory, FileLike},
@@ -353,4 +353,15 @@ pub fn sys_readlink(
     size: usize,
 ) -> LinuxResult<isize> {
     sys_readlinkat(AT_FDCWD, path, buf, size)
+}
+
+pub fn sys_utimensat(
+    _dirfd: i32,
+    _path: UserConstPtr<c_char>,
+    _times: UserConstPtr<timespec>,
+    _flags: i32,
+) -> LinuxResult<isize> {
+    // TODO: Fix stat ralated structure and implementation
+    warn!("sys_utimensat not implemented");
+    Ok(0)
 }
