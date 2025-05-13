@@ -3,7 +3,7 @@ use core::ffi::c_int;
 use axerrno::LinuxResult;
 
 use crate::{
-    file::{FileLike, Pipe, close_file_like},
+    fs::{FileLike, Pipe, close_file_like},
     ptr::UserPtr,
 };
 

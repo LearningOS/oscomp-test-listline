@@ -7,7 +7,7 @@ use axnet::{TcpSocket, UdpSocket};
 use axsync::Mutex;
 use linux_raw_sys::general::S_IFSOCK;
 
-use super::{FileLike, Kstat};
+use crate::fs::{FileLike, Kstat};
 
 pub enum Socket {
     Udp(Mutex<UdpSocket>),

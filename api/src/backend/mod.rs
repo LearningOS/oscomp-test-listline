@@ -1,6 +1,5 @@
-pub mod file;
-pub mod path;
-pub mod signal;
-pub mod sockaddr;
+pub mod fs;
+pub mod net;
+pub mod task;
 
-pub use {file::*, path::*, signal::*, sockaddr::*};
+pub use {fs::*, net::*, task::*};

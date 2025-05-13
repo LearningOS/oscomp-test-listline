@@ -3,7 +3,7 @@ use axhal::time::{TimeValue, wall_time};
 use linux_raw_sys::general::{POLLERR, POLLIN, POLLNVAL, POLLOUT, pollfd, sigset_t, timespec};
 
 use crate::{
-    file::get_file_like,
+    fs::get_file_like,
     ptr::{UserConstPtr, UserPtr, nullable},
     time::timespec_to_timevalue,
 };

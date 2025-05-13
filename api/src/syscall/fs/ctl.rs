@@ -6,8 +6,7 @@ use axtask::{TaskExtRef, current};
 use linux_raw_sys::general::{__kernel_ino_t, __kernel_off_t, AT_FDCWD, AT_REMOVEDIR, timespec};
 
 use crate::{
-    file::{Directory, FileLike},
-    path::{HARDLINK_MANAGER, handle_file_path},
+    fs::{Directory, FileLike, HARDLINK_MANAGER, handle_file_path},
     ptr::{UserConstPtr, UserPtr, nullable},
 };
 

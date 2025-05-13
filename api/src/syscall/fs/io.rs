@@ -6,7 +6,7 @@ use axio::SeekFrom;
 use linux_raw_sys::general::{__kernel_off_t, iovec};
 
 use crate::{
-    file::{File, FileLike, get_file_like},
+    fs::{File, FileLike, get_file_like},
     ptr::{UserConstPtr, UserPtr, nullable},
 };
 

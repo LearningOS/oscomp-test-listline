@@ -13,7 +13,7 @@ use starry_core::{
     task::{ProcessData, TaskExt, ThreadData, add_thread_to_table, new_user_task},
 };
 
-use crate::{file::FD_TABLE, ptr::UserPtr};
+use crate::{fs::FD_TABLE, ptr::UserPtr};
 
 bitflags! {
     /// Options for use with [`sys_clone`].

@@ -6,7 +6,7 @@ use axsync::Mutex;
 use linux_raw_sys::general::AT_FDCWD;
 
 use crate::{
-    path::{FilePath, handle_file_path},
+    fs::{FilePath, handle_file_path},
     ptr::UserConstPtr,
 };
 

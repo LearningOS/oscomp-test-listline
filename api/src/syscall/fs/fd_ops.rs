@@ -11,7 +11,7 @@ use linux_raw_sys::general::{
 };
 
 use crate::{
-    file::{Directory, FD_TABLE, File, FileLike, add_file_like, close_file_like, get_file_like},
+    fs::{Directory, FD_TABLE, File, FileLike, add_file_like, close_file_like, get_file_like},
     ptr::UserConstPtr,
 };
 

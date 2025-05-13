@@ -9,7 +9,7 @@ use axfs::api::canonicalize;
 use linux_raw_sys::general::AT_FDCWD;
 use spin::RwLock;
 
-use crate::file::{Directory, File, FileLike};
+use super::{Directory, File, FileLike};
 
 /// A normalized file path representation
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]

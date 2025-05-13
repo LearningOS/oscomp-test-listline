@@ -7,7 +7,7 @@ use linux_raw_sys::general::{
 use starry_core::task::{ProcessData, get_process};
 
 use crate::{
-    file::AX_FILE_LIMIT,
+    fs::AX_FILE_LIMIT,
     ptr::{UserConstPtr, UserPtr, nullable},
 };
 

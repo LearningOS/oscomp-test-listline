@@ -8,7 +8,7 @@ use linux_raw_sys::general::{
 };
 use memory_addr::{VirtAddr, VirtAddrRange};
 
-use crate::file::{File, FileLike};
+use crate::fs::{File, FileLike};
 
 bitflags::bitflags! {
     /// `PROT_*` flags for use with [`sys_mmap`].

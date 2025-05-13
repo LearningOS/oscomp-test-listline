@@ -1,14 +1,9 @@
-use core::ffi::c_char;
-
 use axerrno::{LinuxError, LinuxResult};
 use axhal::time::{monotonic_time, monotonic_time_nanos, nanos_to_ticks, wall_time};
 use linux_raw_sys::general::{__kernel_clockid_t, CLOCK_MONOTONIC, CLOCK_REALTIME};
 use starry_core::task::time_stat_output;
 
-use crate::{
-    ptr::{UserConstPtr, UserPtr},
-    time::*,
-};
+use crate::{ptr::UserPtr, time::*};
 
 pub fn sys_clock_gettime(
     clock_id: __kernel_clockid_t,

@@ -6,7 +6,7 @@ use axio::{BufReader, PollState, prelude::*};
 use axsync::Mutex;
 use linux_raw_sys::general::S_IFCHR;
 
-use super::Kstat;
+use super::{FileLike, Kstat};
 
 fn console_read_bytes(buf: &mut [u8]) -> AxResult<usize> {
     let len = axhal::console::read_bytes(buf);
@@ -105,7 +105,7 @@ pub fn stdout() -> Stdout {
     Stdout { inner: &INSTANCE }
 }
 
-impl super::FileLike for Stdin {
+impl FileLike for Stdin {
     fn read(&self, buf: &mut [u8]) -> LinuxResult<usize> {
         Ok(self.read_blocked(buf)?)
     }
@@ -137,7 +137,7 @@ impl super::FileLike for Stdin {
     }
 }
 
-impl super::FileLike for Stdout {
+impl FileLike for Stdout {
     fn read(&self, _buf: &mut [u8]) -> LinuxResult<usize> {
         Err(LinuxError::EPERM)
     }

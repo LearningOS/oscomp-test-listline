@@ -5,8 +5,7 @@ use axfs::fops::OpenOptions;
 use linux_raw_sys::general::{AT_EMPTY_PATH, stat, statfs, statx};
 
 use crate::{
-    file::{Directory, File, FileLike, Kstat, get_file_like},
-    path::handle_file_path,
+    fs::{Directory, File, FileLike, Kstat, get_file_like, handle_file_path},
     ptr::{UserConstPtr, UserPtr, nullable},
 };
 

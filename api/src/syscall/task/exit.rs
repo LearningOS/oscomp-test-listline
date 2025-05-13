@@ -5,9 +5,9 @@ use linux_raw_sys::general::SI_KERNEL;
 use starry_core::task::ProcessData;
 
 use crate::{
-    file::FD_TABLE,
+    fs::FD_TABLE,
     ptr::UserPtr,
-    signal::{send_signal_process, send_signal_thread},
+    task::{send_signal_process, send_signal_thread},
 };
 
 pub fn do_exit(exit_code: i32, group_exit: bool) -> ! {
