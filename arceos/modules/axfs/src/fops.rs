@@ -19,6 +19,8 @@ pub type DirEntry = axfs_vfs::VfsDirEntry;
 pub type FileAttr = axfs_vfs::VfsNodeAttr;
 /// Alias of [`axfs_vfs::VfsNodePerm`].
 pub type FilePerm = axfs_vfs::VfsNodePerm;
+/// Alias of [`axfs_vfs::VfsNodeTimes`].
+pub type FileTimes = axfs_vfs::VfsNodeTimes;
 
 /// An opened file object, with open permissions and a cursor.
 pub struct File {

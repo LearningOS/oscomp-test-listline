@@ -1,8 +1,9 @@
 use crate::alloc::string::String;
 use alloc::sync::Arc;
 use axerrno::AxError;
-use axfs_vfs::{VfsDirEntry, VfsError, VfsNodePerm, VfsResult};
+use axfs_vfs::{VfsDirEntry, VfsError, VfsNodePerm, VfsNodeTimes, VfsResult};
 use axfs_vfs::{VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps};
+use axhal::time::wall_time_secs;
 use axsync::Mutex;
 use lwext4_rust::bindings::{
     O_CREAT, O_RDONLY, O_RDWR, O_TRUNC, O_WRONLY, SEEK_CUR, SEEK_END, SEEK_SET,
@@ -129,15 +130,21 @@ impl VfsNodeOps for FileWrapper {
         };
         let blocks = (size + (BLOCK_SIZE as u64 - 1)) / BLOCK_SIZE as u64;
 
+        let (atime, mtime, ctime) = file
+            .file_timestamps_get()
+            .map_err(|e| <i32 as TryInto<AxError>>::try_into(e).unwrap())?;
+        let times = VfsNodeTimes::new(atime as u64, 0, mtime as u64, 0, ctime as u64, 0);
+
         info!(
-            "get_attr of {:?} {:?}, size: {}, blocks: {}",
+            "get_attr of {:?} {:?}, size: {}, blocks: {}, times: {:?}",
             vtype,
             file.get_path(),
             size,
-            blocks
+            blocks,
+            times
         );
 
-        Ok(VfsNodeAttr::new(perm, vtype, size, blocks))
+        Ok(VfsNodeAttr::new(perm, vtype, size, blocks, times))
     }
 
     fn create(&self, path: &str, ty: VfsNodeType) -> VfsResult {
@@ -162,15 +169,22 @@ impl VfsNodeOps for FileWrapper {
         if file.check_inode_exist(fpath, types.clone()) {
             Ok(())
         } else {
+            let current = wall_time_secs() as u32;
             if types == InodeTypes::EXT4_DE_DIR {
                 file.dir_mk(fpath)
-                    .map(|_v| ())
+                    .map(|_| {
+                        file.file_timestamps_set(current, current, current)
+                            .expect("set timestamps failed");
+                    })
                     .map_err(|e| e.try_into().unwrap())
             } else {
                 file.file_open(fpath, O_WRONLY | O_CREAT | O_TRUNC)
                     .expect("create file failed");
                 file.file_close()
-                    .map(|_v| ())
+                    .map(|_| {
+                        file.file_timestamps_set(current, current, current)
+                            .expect("set timestamps failed");
+                    })
                     .map_err(|e| e.try_into().unwrap())
             }
         }
@@ -282,6 +296,11 @@ impl VfsNodeOps for FileWrapper {
             .map_err(|e| <i32 as TryInto<AxError>>::try_into(e).unwrap())?;
         let r = file.file_read(buf);
 
+        if r.is_ok() {
+            file.file_atime_set(wall_time_secs() as u32)
+                .expect("set atime failed");
+        }
+
         let _ = file.file_close();
         r.map_err(|e| e.try_into().unwrap())
     }
@@ -297,6 +316,11 @@ impl VfsNodeOps for FileWrapper {
             .map_err(|e| <i32 as TryInto<AxError>>::try_into(e).unwrap())?;
         let r = file.file_write(buf);
 
+        if r.is_ok() {
+            file.file_mctime_set(wall_time_secs() as u32, wall_time_secs() as u32)
+                .expect("set mctime failed");
+        }
+
         let _ = file.file_close();
         r.map_err(|e| e.try_into().unwrap())
     }
@@ -310,15 +334,25 @@ impl VfsNodeOps for FileWrapper {
 
         let t = file.file_truncate(size);
 
+        if t.is_ok() {
+            file.file_mctime_set(wall_time_secs() as u32, wall_time_secs() as u32)
+                .expect("set mctime failed");
+        }
+
         let _ = file.file_close();
         t.map(|_v| ()).map_err(|e| e.try_into().unwrap())
     }
 
     fn rename(&self, src_path: &str, dst_path: &str) -> VfsResult {
         let mut file = self.0.lock();
-        file.file_rename(src_path, dst_path)
-            .map(|_v| ())
-            .map_err(|e| e.try_into().unwrap())
+        let result = file.file_rename(src_path, dst_path);
+
+        if result.is_ok() {
+            file.file_ctime_set(wall_time_secs() as u32)
+                .expect("set ctime failed");
+        }
+
+        result.map(|_v| ()).map_err(|e| e.try_into().unwrap())
     }
 
     fn as_any(&self) -> &dyn core::any::Any {

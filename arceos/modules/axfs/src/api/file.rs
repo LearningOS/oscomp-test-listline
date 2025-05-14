@@ -11,6 +11,9 @@ pub type FileType = fops::FileType;
 /// Representation of the various permissions on a file.
 pub type Permissions = fops::FilePerm;
 
+/// Alias of [`axfs_vfs::VfsNodeTimes`].
+pub type Timestamp = fops::FileTimes;
+
 /// An object providing access to an open file on the filesystem.
 pub struct File {
     inner: fops::File,
@@ -110,6 +113,11 @@ impl Metadata {
     /// Returns the number of blocks allocated to the file, in 512-byte units.
     pub const fn blocks(&self) -> u64 {
         self.0.blocks()
+    }
+
+    /// Returns the timestamps of the file.
+    pub const fn times(&self) -> Timestamp {
+        self.0.times()
     }
 }
 
