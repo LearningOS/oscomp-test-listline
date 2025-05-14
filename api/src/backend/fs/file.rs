@@ -36,20 +36,10 @@ pub trait FileLike: Send + Sync {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default)]
-pub struct FileTimestamps {
-    pub atime: TimeValue,
-    pub mtime: TimeValue,
-    pub ctime: TimeValue,
-}
-
 /// File wrapper for `axfs::fops::File`.
 pub struct File {
     inner: Mutex<axfs::fops::File>,
     path: String,
-    // Todo: more attributes in VfsNodeAttr
-    // use `axfs::fops::File::get_attr` to get the timestamps
-    times: Mutex<FileTimestamps>,
 }
 
 impl File {
@@ -57,7 +47,6 @@ impl File {
         Self {
             inner: Mutex::new(inner),
             path,
-            times: Mutex::new(FileTimestamps::default()),
         }
     }
 
@@ -85,20 +74,19 @@ impl FileLike for File {
         let metadata = self.inner().get_attr()?;
         let ty = metadata.file_type() as u8;
         let perm = metadata.perm().bits() as u32;
-
-        let times = self.times.lock();
+        let times = metadata.times();
 
         Ok(Kstat {
             mode: ((ty as u32) << 12) | perm,
             size: metadata.size(),
             blocks: metadata.blocks(),
             blksize: 512,
-            atime_sec: times.atime.as_secs() as isize,
-            atime_nsec: times.atime.subsec_nanos() as isize,
-            mtime_sec: times.mtime.as_secs() as isize,
-            mtime_nsec: times.mtime.subsec_nanos() as isize,
-            ctime_sec: times.ctime.as_secs() as isize,
-            ctime_nsec: times.ctime.subsec_nanos() as isize,
+            atime_sec: times.atime_sec as isize,
+            atime_nsec: times.atime_nsec as isize,
+            mtime_sec: times.mtime_sec as isize,
+            mtime_nsec: times.mtime_nsec as isize,
+            ctime_sec: times.ctime_sec as isize,
+            ctime_nsec: times.ctime_nsec as isize,
             ..Default::default()
         })
     }
@@ -123,7 +111,6 @@ impl FileLike for File {
 pub struct Directory {
     inner: Mutex<axfs::fops::Directory>,
     path: String,
-    times: Mutex<FileTimestamps>,
 }
 
 impl Directory {
@@ -131,7 +118,6 @@ impl Directory {
         Self {
             inner: Mutex::new(inner),
             path,
-            times: Mutex::new(FileTimestamps::default()),
         }
     }
 
@@ -156,15 +142,16 @@ impl FileLike for Directory {
     }
 
     fn stat(&self) -> LinuxResult<Kstat> {
-        let times = self.times.lock();
+        let metadata = self.inner().get_attr()?;
+        let times = metadata.times();
         Ok(Kstat {
             mode: S_IFDIR | 0o755u32, // rwxr-xr-x
-            atime_sec: times.atime.as_secs() as isize,
-            atime_nsec: times.atime.subsec_nanos() as isize,
-            mtime_sec: times.mtime.as_secs() as isize,
-            mtime_nsec: times.mtime.subsec_nanos() as isize,
-            ctime_sec: times.ctime.as_secs() as isize,
-            ctime_nsec: times.ctime.subsec_nanos() as isize,
+            atime_sec: times.atime_sec as isize,
+            atime_nsec: times.atime_nsec as isize,
+            mtime_sec: times.mtime_sec as isize,
+            mtime_nsec: times.mtime_nsec as isize,
+            ctime_sec: times.ctime_sec as isize,
+            ctime_nsec: times.ctime_nsec as isize,
             ..Default::default()
         })
     }
