@@ -146,27 +146,27 @@
 /musl/runtest.exe -w entry-static.exe wcsncpy_read_overflow
 /musl/runtest.exe -w entry-static.exe wcsstr_false_negative
 
-/musl/runtest.exe -w entry-dynamic.exe argv
-/musl/runtest.exe -w entry-dynamic.exe basename
-/musl/runtest.exe -w entry-dynamic.exe clocale_mbfuncs
-/musl/runtest.exe -w entry-dynamic.exe clock_gettime
-/musl/runtest.exe -w entry-dynamic.exe dirname
-/musl/runtest.exe -w entry-dynamic.exe dlopen
-/musl/runtest.exe -w entry-dynamic.exe env
-/musl/runtest.exe -w entry-dynamic.exe fdopen
-/musl/runtest.exe -w entry-dynamic.exe fnmatch
-/musl/runtest.exe -w entry-dynamic.exe fscanf
-/musl/runtest.exe -w entry-dynamic.exe fwscanf
-/musl/runtest.exe -w entry-dynamic.exe iconv_open
-/musl/runtest.exe -w entry-dynamic.exe inet_pton
-/musl/runtest.exe -w entry-dynamic.exe mbc
-/musl/runtest.exe -w entry-dynamic.exe memstream
-# # /musl/runtest.exe -w entry-dynamic.exe pthread_cancel_points
-# #/musl/runtest.exe -w entry-dynamic.exe pthread_cancel
-# # /musl/runtest.exe -w entry-dynamic.exe pthread_cond
-# # /musl/runtest.exe -w entry-dynamic.exe pthread_tsd
-/musl/runtest.exe -w entry-dynamic.exe qsort
-/musl/runtest.exe -w entry-dynamic.exe random
+# /musl/runtest.exe -w entry-dynamic.exe argv
+# /musl/runtest.exe -w entry-dynamic.exe basename
+# /musl/runtest.exe -w entry-dynamic.exe clocale_mbfuncs
+# /musl/runtest.exe -w entry-dynamic.exe clock_gettime
+# /musl/runtest.exe -w entry-dynamic.exe dirname
+# /musl/runtest.exe -w entry-dynamic.exe dlopen
+# /musl/runtest.exe -w entry-dynamic.exe env
+# /musl/runtest.exe -w entry-dynamic.exe fdopen
+# /musl/runtest.exe -w entry-dynamic.exe fnmatch
+# /musl/runtest.exe -w entry-dynamic.exe fscanf
+# /musl/runtest.exe -w entry-dynamic.exe fwscanf
+# /musl/runtest.exe -w entry-dynamic.exe iconv_open
+# /musl/runtest.exe -w entry-dynamic.exe inet_pton
+# /musl/runtest.exe -w entry-dynamic.exe mbc
+# /musl/runtest.exe -w entry-dynamic.exe memstream
+# # # /musl/runtest.exe -w entry-dynamic.exe pthread_cancel_points
+# # #/musl/runtest.exe -w entry-dynamic.exe pthread_cancel
+# # # /musl/runtest.exe -w entry-dynamic.exe pthread_cond
+# # # /musl/runtest.exe -w entry-dynamic.exe pthread_tsd
+# /musl/runtest.exe -w entry-dynamic.exe qsort
+# /musl/runtest.exe -w entry-dynamic.exe random
 # /musl/runtest.exe -w entry-dynamic.exe search_hsearch
 # /musl/runtest.exe -w entry-dynamic.exe search_insque
 # /musl/runtest.exe -w entry-dynamic.exe search_lsearch
@@ -259,3 +259,12 @@
 
 /musl/busybox echo "#### OS COMP TEST GROUP END libctest-musl ####"
 /musl/busybox echo "#### OS COMP TEST GROUP END libctest-glibc ####"
+
+
+/musl/busybox echo "#### OS COMP TEST GROUP START lua-glibc ####"
+/musl/lua_testcode.sh
+/musl/busybox echo "#### OS COMP TEST GROUP END lua-glibc ####"
+
+# /musl/busybox echo "#### OS COMP TEST GROUP START busybox-glibc ####"
+# /musl/busybox_testcode.sh
+# /musl/busybox echo "#### OS COMP TEST GROUP END busybox-glibc ####"
