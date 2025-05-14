@@ -1,12 +1,13 @@
+use alloc::{string::String, sync::Arc};
 use core::{any::Any, ffi::c_int};
 
-use alloc::{string::String, sync::Arc};
 use axerrno::{LinuxError, LinuxResult};
 use axio::PollState;
 use axsync::{Mutex, MutexGuard};
 use linux_raw_sys::general::{S_IFDIR, stat, statx};
 
 use super::{add_file_like, get_file_like};
+use crate::time::TimeValue;
 
 #[allow(dead_code)]
 pub trait FileLike: Send + Sync {
@@ -35,10 +36,20 @@ pub trait FileLike: Send + Sync {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FileTimestamps {
+    pub atime: TimeValue,
+    pub mtime: TimeValue,
+    pub ctime: TimeValue,
+}
+
 /// File wrapper for `axfs::fops::File`.
 pub struct File {
     inner: Mutex<axfs::fops::File>,
     path: String,
+    // Todo: more attributes in VfsNodeAttr
+    // use `axfs::fops::File::get_attr` to get the timestamps
+    times: Mutex<FileTimestamps>,
 }
 
 impl File {
@@ -46,6 +57,7 @@ impl File {
         Self {
             inner: Mutex::new(inner),
             path,
+            times: Mutex::new(FileTimestamps::default()),
         }
     }
 
@@ -74,11 +86,19 @@ impl FileLike for File {
         let ty = metadata.file_type() as u8;
         let perm = metadata.perm().bits() as u32;
 
+        let times = self.times.lock();
+
         Ok(Kstat {
             mode: ((ty as u32) << 12) | perm,
             size: metadata.size(),
             blocks: metadata.blocks(),
             blksize: 512,
+            atime_sec: times.atime.as_secs() as isize,
+            atime_nsec: times.atime.subsec_nanos() as isize,
+            mtime_sec: times.mtime.as_secs() as isize,
+            mtime_nsec: times.mtime.subsec_nanos() as isize,
+            ctime_sec: times.ctime.as_secs() as isize,
+            ctime_nsec: times.ctime.subsec_nanos() as isize,
             ..Default::default()
         })
     }
@@ -103,6 +123,7 @@ impl FileLike for File {
 pub struct Directory {
     inner: Mutex<axfs::fops::Directory>,
     path: String,
+    times: Mutex<FileTimestamps>,
 }
 
 impl Directory {
@@ -110,6 +131,7 @@ impl Directory {
         Self {
             inner: Mutex::new(inner),
             path,
+            times: Mutex::new(FileTimestamps::default()),
         }
     }
 
@@ -134,8 +156,15 @@ impl FileLike for Directory {
     }
 
     fn stat(&self) -> LinuxResult<Kstat> {
+        let times = self.times.lock();
         Ok(Kstat {
             mode: S_IFDIR | 0o755u32, // rwxr-xr-x
+            atime_sec: times.atime.as_secs() as isize,
+            atime_nsec: times.atime.subsec_nanos() as isize,
+            mtime_sec: times.mtime.as_secs() as isize,
+            mtime_nsec: times.mtime.subsec_nanos() as isize,
+            ctime_sec: times.ctime.as_secs() as isize,
+            ctime_nsec: times.ctime.subsec_nanos() as isize,
             ..Default::default()
         })
     }
@@ -173,6 +202,12 @@ pub struct Kstat {
     pub size: u64,
     pub blocks: u64,
     pub blksize: u32,
+    pub atime_sec: isize,
+    pub atime_nsec: isize,
+    pub mtime_sec: isize,
+    pub mtime_nsec: isize,
+    pub ctime_sec: isize,
+    pub ctime_nsec: isize,
 }
 
 impl Default for Kstat {
@@ -186,6 +221,12 @@ impl Default for Kstat {
             size: 0,
             blocks: 0,
             blksize: 4096,
+            atime_sec: 0,
+            atime_nsec: 0,
+            mtime_sec: 0,
+            mtime_nsec: 0,
+            ctime_sec: 0,
+            ctime_nsec: 0,
         }
     }
 }
@@ -202,6 +243,12 @@ impl From<Kstat> for stat {
         stat.st_size = value.size as _;
         stat.st_blksize = value.blksize as _;
         stat.st_blocks = value.blocks as _;
+        stat.st_atime = value.atime_sec as _;
+        stat.st_atime_nsec = value.atime_nsec as _;
+        stat.st_mtime = value.mtime_sec as _;
+        stat.st_mtime_nsec = value.mtime_nsec as _;
+        stat.st_ctime = value.ctime_sec as _;
+        stat.st_ctime_nsec = value.ctime_nsec as _;
 
         stat
     }
@@ -209,7 +256,6 @@ impl From<Kstat> for stat {
 
 impl From<Kstat> for statx {
     fn from(value: Kstat) -> Self {
-        // SAFETY: valid for statx
         let mut statx: statx = unsafe { core::mem::zeroed() };
         statx.stx_blksize = value.blksize as _;
         statx.stx_attributes = value.mode as _;
@@ -220,6 +266,13 @@ impl From<Kstat> for statx {
         statx.stx_ino = value.ino as _;
         statx.stx_size = value.size as _;
         statx.stx_blocks = value.blocks as _;
+
+        statx.stx_atime.tv_sec = value.atime_sec as _;
+        statx.stx_atime.tv_nsec = value.atime_nsec as _;
+        statx.stx_mtime.tv_sec = value.mtime_sec as _;
+        statx.stx_mtime.tv_nsec = value.mtime_nsec as _;
+        statx.stx_ctime.tv_sec = value.ctime_sec as _;
+        statx.stx_ctime.tv_nsec = value.ctime_nsec as _;
 
         statx
     }
