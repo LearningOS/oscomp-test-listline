@@ -7,7 +7,6 @@ use axsync::{Mutex, MutexGuard};
 use linux_raw_sys::general::{S_IFDIR, stat, statx};
 
 use super::{add_file_like, get_file_like};
-use crate::time::TimeValue;
 
 #[allow(dead_code)]
 pub trait FileLike: Send + Sync {

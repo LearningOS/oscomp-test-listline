@@ -166,28 +166,27 @@ impl VfsNodeOps for FileWrapper {
         };
 
         let mut file = self.0.lock();
-        if file.check_inode_exist(fpath, types.clone()) {
+        let result = if file.check_inode_exist(fpath, types.clone()) {
             Ok(())
         } else {
-            let current = wall_time_secs() as u32;
             if types == InodeTypes::EXT4_DE_DIR {
                 file.dir_mk(fpath)
-                    .map(|_| {
-                        file.file_timestamps_set(current, current, current)
-                            .expect("set timestamps failed");
-                    })
+                    .map(|_v| ())
                     .map_err(|e| e.try_into().unwrap())
             } else {
                 file.file_open(fpath, O_WRONLY | O_CREAT | O_TRUNC)
                     .expect("create file failed");
                 file.file_close()
-                    .map(|_| {
-                        file.file_timestamps_set(current, current, current)
-                            .expect("set timestamps failed");
-                    })
+                    .map(|_v| ())
                     .map_err(|e| e.try_into().unwrap())
             }
+        };
+
+        if result.is_ok() {
+            file.file_timestamps_set(wall_time_secs() as u32, wall_time_secs() as u32, wall_time_secs() as u32)
+                .expect("set timestamps failed");
         }
+        result
     }
 
     fn remove(&self, path: &str) -> VfsResult {
