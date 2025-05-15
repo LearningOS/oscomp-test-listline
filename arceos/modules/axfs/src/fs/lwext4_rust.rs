@@ -117,9 +117,10 @@ impl VfsNodeOps for FileWrapper {
             }
         };
 
+        let path = file.get_path();
+        let path = path.to_str().unwrap();
+
         let size = if vtype == VfsNodeType::File {
-            let path = file.get_path();
-            let path = path.to_str().unwrap();
             file.file_open(path, O_RDONLY)
                 .map_err(|e| <i32 as TryInto<AxError>>::try_into(e).unwrap())?;
             let fsize = file.file_size();
@@ -131,7 +132,7 @@ impl VfsNodeOps for FileWrapper {
         let blocks = (size + (BLOCK_SIZE as u64 - 1)) / BLOCK_SIZE as u64;
 
         let (atime, mtime, ctime) = file
-            .file_timestamps_get()
+            .file_timestamps_get(path)
             .map_err(|e| <i32 as TryInto<AxError>>::try_into(e).unwrap())?;
         let times = VfsNodeTimes::new(atime as u64, 0, mtime as u64, 0, ctime as u64, 0);
 
@@ -180,12 +181,11 @@ impl VfsNodeOps for FileWrapper {
                     .map(|_v| ())
                     .map_err(|e| e.try_into().unwrap())
             }
-        };
-
-        if result.is_ok() {
-            file.file_timestamps_set(wall_time_secs() as u32, wall_time_secs() as u32, wall_time_secs() as u32)
+        }.inspect(|_| {
+            file.file_timestamps_set(fpath, wall_time_secs() as u32, wall_time_secs() as u32, wall_time_secs() as u32)
                 .expect("set timestamps failed");
-        }
+        });
+
         result
     }
 
@@ -293,12 +293,11 @@ impl VfsNodeOps for FileWrapper {
 
         file.file_seek(offset as i64, SEEK_SET)
             .map_err(|e| <i32 as TryInto<AxError>>::try_into(e).unwrap())?;
-        let r = file.file_read(buf);
-
-        if r.is_ok() {
-            file.file_atime_set(wall_time_secs() as u32)
+        
+        let r = file.file_read(buf).inspect(|_| {
+            file.file_atime_set(path, wall_time_secs() as u32)
                 .expect("set atime failed");
-        }
+        });
 
         let _ = file.file_close();
         r.map_err(|e| e.try_into().unwrap())
@@ -313,12 +312,10 @@ impl VfsNodeOps for FileWrapper {
 
         file.file_seek(offset as i64, SEEK_SET)
             .map_err(|e| <i32 as TryInto<AxError>>::try_into(e).unwrap())?;
-        let r = file.file_write(buf);
-
-        if r.is_ok() {
-            file.file_mctime_set(wall_time_secs() as u32, wall_time_secs() as u32)
+        let r = file.file_write(buf).inspect(|_| {
+            file.file_mctime_set(path, wall_time_secs() as u32, wall_time_secs() as u32)
                 .expect("set mctime failed");
-        }
+        });
 
         let _ = file.file_close();
         r.map_err(|e| e.try_into().unwrap())
@@ -331,12 +328,10 @@ impl VfsNodeOps for FileWrapper {
         file.file_open(path, O_RDWR | O_CREAT | O_TRUNC)
             .map_err(|e| <i32 as TryInto<AxError>>::try_into(e).unwrap())?;
 
-        let t = file.file_truncate(size);
-
-        if t.is_ok() {
-            file.file_mctime_set(wall_time_secs() as u32, wall_time_secs() as u32)
+        let t = file.file_truncate(size).inspect(|_| {
+            file.file_mctime_set(path, wall_time_secs() as u32, wall_time_secs() as u32)
                 .expect("set mctime failed");
-        }
+        });
 
         let _ = file.file_close();
         t.map(|_v| ()).map_err(|e| e.try_into().unwrap())
@@ -344,12 +339,10 @@ impl VfsNodeOps for FileWrapper {
 
     fn rename(&self, src_path: &str, dst_path: &str) -> VfsResult {
         let mut file = self.0.lock();
-        let result = file.file_rename(src_path, dst_path);
-
-        if result.is_ok() {
-            file.file_ctime_set(wall_time_secs() as u32)
+        let result = file.file_rename(src_path, dst_path).inspect(|_| {
+            file.file_ctime_set(dst_path, wall_time_secs() as u32)
                 .expect("set ctime failed");
-        }
+        });
 
         result.map(|_v| ()).map_err(|e| e.try_into().unwrap())
     }

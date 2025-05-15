@@ -920,7 +920,7 @@ dependencies = [
 [[package]]
 name = "lwext4_rust"
 version = "0.2.0"
-source = "git+https://github.com/Anekoique/lwext4_rust.git#4ac842b157aff8814a793dc0c430b39405de5fee"
+source = "git+https://github.com/Anekoique/lwext4_rust.git#930da541f2053af4f7b3ccf8ed9a6721d006d2de"
 dependencies = [
  "log",
 ]
