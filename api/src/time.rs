@@ -100,3 +100,7 @@ impl TimeValueLike for __kernel_sock_timeval {
         TimeValue::new(self.tv_sec as u64, self.tv_usec as u32 * 1000)
     }
 }
+
+pub fn timespec_to_timevalue(ts: timespec) -> TimeValue {
+    TimeValue::new(ts.tv_sec as u64, ts.tv_nsec as u32)
+}
