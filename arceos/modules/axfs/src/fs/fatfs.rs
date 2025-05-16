@@ -1,7 +1,7 @@
 use alloc::sync::Arc;
 use core::cell::UnsafeCell;
 
-use axfs_vfs::{VfsDirEntry, VfsError, VfsNodePerm, VfsResult};
+use axfs_vfs::{VfsDirEntry, VfsError, VfsNodePerm, VfsNodeTimes, VfsResult};
 use axfs_vfs::{VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps};
 use axsync::Mutex;
 use fatfs::{Dir, File, LossyOemCpConverter, NullTimeProvider, Read, Seek, SeekFrom, Write};
@@ -76,7 +76,7 @@ impl<IO: IoTrait> VfsNodeOps for FileWrapper<'static, IO> {
         let blocks = (size + BLOCK_SIZE as u64 - 1) / BLOCK_SIZE as u64;
         // FAT fs doesn't support permissions, we just set everything to 755
         let perm = VfsNodePerm::from_bits_truncate(0o755);
-        Ok(VfsNodeAttr::new(perm, VfsNodeType::File, size, blocks))
+        Ok(VfsNodeAttr::new(perm, VfsNodeType::File, size, blocks, VfsNodeTimes::default()))
     }
 
     fn read_at(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
@@ -108,6 +108,7 @@ impl<IO: IoTrait> VfsNodeOps for DirWrapper<'static, IO> {
             VfsNodeType::Dir,
             BLOCK_SIZE as u64,
             1,
+            VfsNodeTimes::default(),
         ))
     }
 

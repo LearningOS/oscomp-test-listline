@@ -1,13 +1,14 @@
 use crate::alloc::string::String;
 use alloc::sync::Arc;
 use axerrno::AxError;
-use axfs_vfs::{VfsDirEntry, VfsError, VfsNodePerm, VfsResult};
-use axfs_vfs::{VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps};
+use axfs_vfs::{TimesMask, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps};
+use axfs_vfs::{VfsDirEntry, VfsError, VfsNodePerm, VfsNodeTimes, VfsResult};
+use axhal::time::wall_time_secs;
 use axsync::Mutex;
 use lwext4_rust::bindings::{
     O_CREAT, O_RDONLY, O_RDWR, O_TRUNC, O_WRONLY, SEEK_CUR, SEEK_END, SEEK_SET,
 };
-use lwext4_rust::{Ext4BlockWrapper, Ext4File, InodeTypes, KernelDevOp};
+use lwext4_rust::{Ext4BlockWrapper, Ext4File, InodeTypes, KernelDevOp, TimestampFlags};
 
 use crate::dev::Disk;
 pub const BLOCK_SIZE: usize = 512;
@@ -116,9 +117,10 @@ impl VfsNodeOps for FileWrapper {
             }
         };
 
+        let path = file.get_path();
+        let path = path.to_str().unwrap();
+
         let size = if vtype == VfsNodeType::File {
-            let path = file.get_path();
-            let path = path.to_str().unwrap();
             file.file_open(path, O_RDONLY)
                 .map_err(|e| <i32 as TryInto<AxError>>::try_into(e).unwrap())?;
             let fsize = file.file_size();
@@ -129,15 +131,21 @@ impl VfsNodeOps for FileWrapper {
         };
         let blocks = (size + (BLOCK_SIZE as u64 - 1)) / BLOCK_SIZE as u64;
 
+        let (atime, mtime, ctime) = file
+            .time_get(path, TimestampFlags::ALL)
+            .map_err(|e| <i32 as TryInto<AxError>>::try_into(e).unwrap())?;
+        let times = VfsNodeTimes::new(atime as u64, 0, mtime as u64, 0, ctime as u64, 0);
+
         info!(
-            "get_attr of {:?} {:?}, size: {}, blocks: {}",
+            "get_attr of {:?} {:?}, size: {}, blocks: {}, times: {:?}",
             vtype,
             file.get_path(),
             size,
-            blocks
+            blocks,
+            times
         );
 
-        Ok(VfsNodeAttr::new(perm, vtype, size, blocks))
+        Ok(VfsNodeAttr::new(perm, vtype, size, blocks, times))
     }
 
     fn create(&self, path: &str, ty: VfsNodeType) -> VfsResult {
@@ -159,7 +167,7 @@ impl VfsNodeOps for FileWrapper {
         };
 
         let mut file = self.0.lock();
-        if file.check_inode_exist(fpath, types.clone()) {
+        let result = if file.check_inode_exist(fpath, types.clone()) {
             Ok(())
         } else {
             if types == InodeTypes::EXT4_DE_DIR {
@@ -174,6 +182,17 @@ impl VfsNodeOps for FileWrapper {
                     .map_err(|e| e.try_into().unwrap())
             }
         }
+        .inspect(|_| {
+            let current_time = wall_time_secs() as u32;
+            file.time_set(
+                fpath,
+                TimestampFlags::ALL,
+                (current_time, current_time, current_time),
+            )
+            .expect("set timestamps failed");
+        });
+
+        result
     }
 
     fn remove(&self, path: &str) -> VfsResult {
@@ -258,7 +277,6 @@ impl VfsNodeOps for FileWrapper {
             return Ok(self.clone());
         }
 
-        /////////
         let mut file = self.0.lock();
         if file.check_inode_exist(fpath, InodeTypes::EXT4_DE_DIR) {
             trace!("lookup new DIR FileWrapper");
@@ -280,7 +298,11 @@ impl VfsNodeOps for FileWrapper {
 
         file.file_seek(offset as i64, SEEK_SET)
             .map_err(|e| <i32 as TryInto<AxError>>::try_into(e).unwrap())?;
-        let r = file.file_read(buf);
+
+        let r = file.file_read(buf).inspect(|_| {
+            file.time_set(path, TimestampFlags::ATIME, (wall_time_secs() as u32, 0, 0))
+                .expect("set atime failed");
+        });
 
         let _ = file.file_close();
         r.map_err(|e| e.try_into().unwrap())
@@ -295,7 +317,15 @@ impl VfsNodeOps for FileWrapper {
 
         file.file_seek(offset as i64, SEEK_SET)
             .map_err(|e| <i32 as TryInto<AxError>>::try_into(e).unwrap())?;
-        let r = file.file_write(buf);
+        let r = file.file_write(buf).inspect(|_| {
+            let current_time = wall_time_secs() as u32;
+            file.time_set(
+                path,
+                TimestampFlags::MTIME | TimestampFlags::CTIME,
+                (0, current_time, current_time),
+            )
+            .expect("set mtime failed");
+        });
 
         let _ = file.file_close();
         r.map_err(|e| e.try_into().unwrap())
@@ -308,7 +338,15 @@ impl VfsNodeOps for FileWrapper {
         file.file_open(path, O_RDWR | O_CREAT | O_TRUNC)
             .map_err(|e| <i32 as TryInto<AxError>>::try_into(e).unwrap())?;
 
-        let t = file.file_truncate(size);
+        let t = file.file_truncate(size).inspect(|_| {
+            let current_time = wall_time_secs() as u32;
+            file.time_set(
+                path,
+                TimestampFlags::MTIME | TimestampFlags::CTIME,
+                (0, current_time, current_time),
+            )
+            .expect("set mtime failed");
+        });
 
         let _ = file.file_close();
         t.map(|_v| ()).map_err(|e| e.try_into().unwrap())
@@ -316,13 +354,40 @@ impl VfsNodeOps for FileWrapper {
 
     fn rename(&self, src_path: &str, dst_path: &str) -> VfsResult {
         let mut file = self.0.lock();
-        file.file_rename(src_path, dst_path)
-            .map(|_v| ())
-            .map_err(|e| e.try_into().unwrap())
+        let result = file.file_rename(src_path, dst_path).inspect(|_| {
+            file.time_set(
+                dst_path,
+                TimestampFlags::CTIME,
+                (0, 0, wall_time_secs() as u32),
+            )
+            .expect("set ctime failed");
+        });
+
+        result.map(|_v| ()).map_err(|e| e.try_into().unwrap())
     }
 
     fn as_any(&self) -> &dyn core::any::Any {
         self as &dyn core::any::Any
+    }
+
+    fn set_times(&self, times: VfsNodeTimes, mask: TimesMask) -> VfsResult {
+        let mut file = self.0.lock();
+        let path = file.get_path();
+        let path = path.to_str().unwrap();
+
+        let flags = TimestampFlags::from_bits_truncate(mask.bits());
+        file.time_set(
+            path,
+            // lwext4 only support u32
+            flags,
+            (
+                times.atime_sec as u32,
+                times.mtime_sec as u32,
+                times.ctime_sec as u32,
+            ),
+        )
+        .expect("set times failed");
+        Ok(())
     }
 }
 

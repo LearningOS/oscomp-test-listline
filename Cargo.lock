@@ -90,6 +90,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "arm_pl031"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13696b1c2b59992f4223e0ae5bb173c81c63039367ca90eee845346ad2a13421"
+dependencies = [
+ "chrono",
+]
+
+[[package]]
 name = "atomic-polyfill"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -240,6 +249,7 @@ dependencies = [
  "axfs_devfs",
  "axfs_ramfs",
  "axfs_vfs",
+ "axhal",
  "axio",
  "axns",
  "axsync",
@@ -255,10 +265,9 @@ dependencies = [
 [[package]]
 name = "axfs_devfs"
 version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d62eff0490e10cd2c2a74be2979820f0293fa5ebe00ee8bfd87b88ac7dd7d235"
 dependencies = [
  "axfs_vfs",
+ "axhal",
  "log",
  "spin",
 ]
@@ -266,8 +275,6 @@ dependencies = [
 [[package]]
 name = "axfs_ramfs"
 version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db46c6dae25a123579d5fdcdcc502d0dc2a8af86646106004c8a9181433271b1"
 dependencies = [
  "axfs_vfs",
  "log",
@@ -277,11 +284,10 @@ dependencies = [
 [[package]]
 name = "axfs_vfs"
 version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2314ebe07a2fef7b1c1a7d15ab817941cd306ace651bb50024b5a8b3e8485359"
 dependencies = [
  "axerrno",
- "bitflags 2.9.0",
+ "axhal",
+ "bitflags 2.9.1",
  "log",
 ]
 
@@ -292,10 +298,11 @@ dependencies = [
  "aarch64-cpu",
  "arm_gicv2",
  "arm_pl011",
+ "arm_pl031",
  "axalloc",
  "axconfig",
  "axlog",
- "bitflags 2.9.0",
+ "bitflags 2.9.1",
  "cfg-if",
  "dw_apb_uart",
  "handler_table",
@@ -313,12 +320,14 @@ dependencies = [
  "percpu",
  "raw-cpuid 11.5.0",
  "riscv",
+ "riscv_goldfish",
  "sbi-rt",
  "static_assertions",
  "tock-registers 0.9.0",
  "x2apic",
  "x86",
  "x86_64 0.15.2",
+ "x86_rtc",
 ]
 
 [[package]]
@@ -421,7 +430,7 @@ dependencies = [
  "axerrno",
  "axhal",
  "axtask",
- "bitflags 2.9.0",
+ "bitflags 2.9.1",
  "cfg-if",
  "derive_more",
  "linux-raw-sys",
@@ -484,9 +493,9 @@ checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
 name = "bitflags"
-version = "2.9.0"
+version = "2.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c8214115b7bf84099f1309324e63141d4c5d7cc26862f97a0a857dbefe165bd"
+checksum = "1b8e56985ec62d17e9c1001dc89c88ecd7dc08e47eba5ec7c29c7b5eeecde967"
 
 [[package]]
 name = "bitmap-allocator"
@@ -515,7 +524,7 @@ version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c9b24894fa5f73bbf9c72196e7f495a1f81d6218a548280a09ada4a937157692"
 dependencies = [
- "bitflags 2.9.0",
+ "bitflags 2.9.1",
 ]
 
 [[package]]
@@ -729,7 +738,7 @@ name = "fatfs"
 version = "0.4.0"
 source = "git+https://github.com/rafalh/rust-fatfs?rev=85f06e0#85f06e08edbd3368e1b0562f2fc1b6d178bf7b8a"
 dependencies = [
- "bitflags 2.9.0",
+ "bitflags 2.9.1",
  "log",
 ]
 
@@ -806,9 +815,9 @@ checksum = "7943c866cc5cd64cbc25b2e01621d07fa8eb2a1a23160ee81ce38704e97b8ecf"
 
 [[package]]
 name = "kernel-elf-parser"
-version = "0.3.2"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "102999b07d80f34c1dca0d9e8f24adaa8028708842d39a3e5b98f4f085755627"
+checksum = "899ed6b4dd0d22b7f1a9cd23ec9f55ea2d96112132d398ef5eb7df520c288009"
 dependencies = [
  "axerrno",
  "cfg-if",
@@ -904,14 +913,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c9f0d275c70310e2a9d2fc23250c5ac826a73fa828a5f256401f85c5c554283"
 dependencies = [
  "bit_field",
- "bitflags 2.9.0",
+ "bitflags 2.9.1",
 ]
 
 [[package]]
 name = "lwext4_rust"
 version = "0.2.0"
-source = "git+https://github.com/Azure-stars/lwext4_rust.git#2e56b0aa2680b210892a46375fefca2bdf6e2865"
+source = "git+https://github.com/Anekoique/lwext4_rust.git#f1fb91d9c8e783c858c08f00ff2b93a93c320daf"
 dependencies = [
+ "bitflags 2.9.1",
  "log",
 ]
 
@@ -995,7 +1005,7 @@ version = "0.5.3"
 source = "git+https://github.com/Mivik/page_table_multiarch.git?rev=19ededd#19ededdb806ab3b22efb4880661790524fa421a5"
 dependencies = [
  "aarch64-cpu",
- "bitflags 2.9.0",
+ "bitflags 2.9.1",
  "memory_addr",
  "x86_64 0.15.2",
 ]
@@ -1096,7 +1106,7 @@ version = "11.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c6df7ab838ed27997ba19a4664507e6f82b41fe6e20be42929332156e5e85146"
 dependencies = [
- "bitflags 2.9.0",
+ "bitflags 2.9.1",
 ]
 
 [[package]]
@@ -1128,6 +1138,12 @@ name = "riscv-pac"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8188909339ccc0c68cfb5a04648313f09621e8b87dc03095454f1a11f6c5d436"
+
+[[package]]
+name = "riscv_goldfish"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "07aac72f95e774476db82916d79f2d303191310393830573c1ab5c821b21660a"
 
 [[package]]
 name = "rlsf"
@@ -1267,7 +1283,7 @@ dependencies = [
  "axsignal",
  "axsync",
  "axtask",
- "bitflags 2.9.0",
+ "bitflags 2.9.1",
  "cfg-if",
  "ctor_bare",
  "flatten_objects",
@@ -1470,7 +1486,7 @@ version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa40e09453618c7a927c08c5a990497a2954da7c2aaa6c65e0d4f0fc975f6114"
 dependencies = [
- "bitflags 2.9.0",
+ "bitflags 2.9.1",
  "log",
  "zerocopy",
 ]
@@ -1599,7 +1615,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c101112411baafbb4bf8d33e4c4a80ab5b02d74d2612331c61e8192fc9710491"
 dependencies = [
  "bit_field",
- "bitflags 2.9.0",
+ "bitflags 2.9.1",
  "rustversion",
  "volatile",
 ]
@@ -1611,9 +1627,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0f042214de98141e9c8706e8192b73f56494087cc55ebec28ce10f26c5c364ae"
 dependencies = [
  "bit_field",
- "bitflags 2.9.0",
+ "bitflags 2.9.1",
  "rustversion",
  "volatile",
+]
+
+[[package]]
+name = "x86_rtc"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d1a42420da20c01d82e5d42231570efa3b9e16a5515eaaf9ee4e964f49cc1313"
+dependencies = [
+ "cfg-if",
+ "x86_64 0.15.2",
 ]
 
 [[package]]

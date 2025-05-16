@@ -40,6 +40,16 @@ pub fn wall_time_nanos() -> u64 {
     monotonic_time_nanos() + epochoffset_nanos()
 }
 
+/// Returns milliseconds elapsed since epoch (also known as realtime).
+pub fn wall_time_millis() -> u64 {
+    wall_time_nanos() / NANOS_PER_MILLIS
+}
+
+/// Returns seconds elapsed since epoch (also known as realtime).
+pub fn wall_time_secs() -> u64 {
+    wall_time_nanos() / NANOS_PER_SEC
+}
+
 /// Returns the time elapsed since epoch (also known as realtime) in [`TimeValue`].
 pub fn wall_time() -> TimeValue {
     TimeValue::from_nanos(monotonic_time_nanos() + epochoffset_nanos())

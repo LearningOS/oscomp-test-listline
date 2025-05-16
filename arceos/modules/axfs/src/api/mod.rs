@@ -4,7 +4,8 @@ mod dir;
 mod file;
 
 pub use self::dir::{DirBuilder, DirEntry, ReadDir};
-pub use self::file::{File, FileType, Metadata, OpenOptions, Permissions};
+pub use self::file::{File, FileType, Metadata, OpenOptions, Permissions, Timestamp};
+pub use axfs_vfs::TimesMask;
 
 use alloc::{string::String, vec::Vec};
 use axio::{self as io, prelude::*};

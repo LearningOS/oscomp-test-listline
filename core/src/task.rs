@@ -219,6 +219,7 @@ impl ProcessData {
         aspace: Arc<Mutex<AddrSpace>>,
         signal_actions: Arc<Mutex<SignalActions>>,
         exit_signal: Option<Signo>,
+        rlimits: Option<Rlimits>,
     ) -> Self {
         Self {
             exe_path: RwLock::new(exe_path),
@@ -235,7 +236,7 @@ impl ProcessData {
                 axconfig::plat::SIGNAL_TRAMPOLINE,
             )),
 
-            rlimits: RwLock::new(Rlimits::default()),
+            rlimits: RwLock::new(rlimits.unwrap_or_default()),
         }
     }
 

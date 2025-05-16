@@ -4,7 +4,7 @@ use axhal::arch::UspaceContext;
 use axprocess::{Pid, init_proc};
 use axsignal::Signo;
 use axsync::Mutex;
-use starry_api::file::FD_TABLE;
+use starry_api::fs::FD_TABLE;
 use starry_core::{
     mm::{copy_from_kernel, load_user_app, map_trampoline, new_user_aspace_empty},
     task::{ProcessData, TaskExt, ThreadData, add_thread_to_table, new_user_task},
@@ -36,6 +36,7 @@ pub fn run_user_app(args: &[String], envs: &[String]) -> Option<i32> {
         Arc::new(Mutex::new(uspace)),
         Arc::default(),
         Some(Signo::SIGCHLD),
+        None,
     );
 
     FD_TABLE

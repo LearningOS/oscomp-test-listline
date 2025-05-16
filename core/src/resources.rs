@@ -1,7 +1,10 @@
 //! Resource management.
 use core::ops::{Index, IndexMut};
 
-use linux_raw_sys::general::{RLIM_NLIMITS, RLIMIT_STACK};
+use linux_raw_sys::general::{RLIM_NLIMITS, RLIMIT_NOFILE, RLIMIT_STACK};
+
+/// The maximum number of file descriptors a process can have.
+pub const AX_FILE_LIMIT: usize = 1024;
 
 /// Resource limit structure representing soft and hard limits.
 ///
@@ -11,7 +14,7 @@ use linux_raw_sys::general::{RLIM_NLIMITS, RLIMIT_STACK};
 /// - `max`: The hard limit, which is the ceiling for the soft limit.
 ///   A process may only raise its soft limit up to the hard limit, and only privileged
 ///   processes may raise the hard limit.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Rlimit {
     /// The current (soft) limit
     pub current: u64,
@@ -53,6 +56,7 @@ impl From<u64> for Rlimit {
 /// This structure maintains all resource limits for a process as defined
 /// in the POSIX standard and Linux. It supports access by resource ID
 /// (e.g., RLIMIT_STACK, RLIMIT_CPU) to get or set specific limits.
+#[derive(Clone)]
 pub struct Rlimits([Rlimit; RLIM_NLIMITS as usize]);
 
 impl Default for Rlimits {
@@ -64,6 +68,7 @@ impl Default for Rlimits {
         let mut result = Self(Default::default());
         // Set the default stack size limit
         result[RLIMIT_STACK] = (axconfig::plat::USER_STACK_SIZE as u64).into();
+        result[RLIMIT_NOFILE] = (AX_FILE_LIMIT as u64).into();
         result
     }
 }

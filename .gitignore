@@ -12,4 +12,5 @@ apps/*/build/
 *.img
 /extern
 /diff
-/log
+/log*
+.gdb_history
