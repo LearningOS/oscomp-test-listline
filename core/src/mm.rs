@@ -2,7 +2,7 @@
 
 use core::ffi::CStr;
 
-use alloc::{string::String, vec};
+use alloc::{borrow::ToOwned, string::String, vec, vec::Vec};
 use axerrno::{AxError, AxResult};
 use axhal::{mem::virt_to_phys, paging::MappingFlags};
 use axmm::{AddrSpace, kernel_aspace};
@@ -111,6 +111,24 @@ pub fn load_user_app(
         return Err(AxError::InvalidInput);
     }
     let file_data = axfs::api::read(args[0].as_str())?;
+
+    //检测到文件数据的前两个字节是#!，则表示是脚本文件
+    // 需要解析脚本文件的头部，获取解释器路径
+    if file_data.starts_with(b"#!") {
+        let head = &file_data[2..file_data.len().min(256)];
+        let pos = head.iter().position(|c| *c == b'\n').unwrap_or(head.len());
+        let line = core::str::from_utf8(&head[..pos]).map_err(|_| AxError::InvalidData)?;
+
+        let new_args: Vec<String> = line
+            .trim()
+            .splitn(2, |c: char| c.is_ascii_whitespace())
+            .map(|s| s.trim_ascii().to_owned())
+            .chain(args.iter().cloned())
+            .collect();
+
+        return load_user_app(uspace, &new_args, envs);
+    }
+
     let elf = ElfFile::new(&file_data).map_err(|_| AxError::InvalidData)?;
 
     if let Some(interp) = elf

@@ -60,22 +60,22 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
             tf.arg3() as _,
         ),
         Sysno::lseek => sys_lseek(tf.arg0() as _, tf.arg1() as _, tf.arg2() as _),
-        // Sysno::sendfile => sys_sendfile(
-        //     tf.arg0() as _,
-        //     tf.arg1() as _,
-        //     tf.arg2().into(),
-        //     tf.arg3() as _,
-        // ),
+        Sysno::sendfile => sys_sendfile(
+            tf.arg0() as _,
+            tf.arg1() as _,
+            tf.arg2().into(),
+            tf.arg3() as _,
+        ),
 
         // io mpx
-        // #[cfg(target_arch = "x86_64")]
-        // Sysno::poll => sys_poll(tf.arg0().into(), tf.arg1() as _, tf.arg2() as _),
-        // Sysno::ppoll => sys_ppoll(
-        //     tf.arg0().into(),
-        //     tf.arg1() as _,
-        //     tf.arg2().into(),
-        //     tf.arg3().into(),
-        // ),
+        #[cfg(target_arch = "x86_64")]
+        Sysno::poll => sys_poll(tf.arg0().into(), tf.arg1() as _, tf.arg2() as _),
+        Sysno::ppoll => sys_ppoll(
+            tf.arg0().into(),
+            tf.arg1() as _,
+            tf.arg2().into(),
+            tf.arg3().into(),
+        ),
 
         // fs mount
         Sysno::mount => sys_mount(
@@ -89,6 +89,8 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
 
         // pipe
         Sysno::pipe2 => sys_pipe2(tf.arg0().into(), tf.arg1() as _),
+        #[cfg(target_arch = "x86_64")]
+        Sysno::pipe => sys_pipe2(tf.arg0().into(), 0),
 
         // fs stat
         #[cfg(target_arch = "x86_64")]
@@ -208,6 +210,7 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         Sysno::getgid => sys_getgid(),
         Sysno::getegid => sys_getegid(),
         Sysno::uname => sys_uname(tf.arg0().into()),
+        Sysno::syslog => Ok(0), // TODO: syslog
 
         // time
         Sysno::gettimeofday => sys_get_time_of_day(tf.arg0().into()),
