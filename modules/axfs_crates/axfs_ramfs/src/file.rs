@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
 use axfs_vfs::{
-    impl_vfs_non_dir_default, TimesMask, VfsNodeAttr, VfsNodeOps, VfsNodeTimes, VfsResult,
+    TimesMask, VfsNodeAttr, VfsNodeOps, VfsNodeTimes, VfsResult, impl_vfs_non_dir_default,
 };
 use spin::RwLock;
 
@@ -9,21 +9,25 @@ use spin::RwLock;
 /// It implements [`axfs_vfs::VfsNodeOps`].
 pub struct FileNode {
     content: RwLock<Vec<u8>>,
-    times: RwLock<VfsNodeTimes>,
+    timestamp: RwLock<VfsNodeTimes>,
 }
 
 impl FileNode {
-    pub(super) const fn new(times: VfsNodeTimes) -> Self {
+    pub(super) fn new() -> Self {
         Self {
             content: RwLock::new(Vec::new()),
-            times: RwLock::new(times),
+            timestamp: RwLock::new(VfsNodeTimes::default()),
         }
     }
 }
 
 impl VfsNodeOps for FileNode {
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
-        Ok(VfsNodeAttr::new_file(self.content.read().len() as _, 0))
+        Ok(VfsNodeAttr::new_file(
+            self.content.read().len() as _,
+            0,
+            self.timestamp.read().clone(),
+        ))
     }
 
     fn truncate(&self, size: u64) -> VfsResult {
@@ -57,7 +61,8 @@ impl VfsNodeOps for FileNode {
     }
 
     fn set_times(&self, times: VfsNodeTimes, mask: TimesMask) -> VfsResult {
-        *self.times.write() = times;
+        let mut ts = self.timestamp.write();
+        ts.set_times(&times, mask);
         Ok(())
     }
 

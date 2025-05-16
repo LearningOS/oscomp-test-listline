@@ -2,7 +2,9 @@ use alloc::collections::BTreeMap;
 use alloc::sync::{Arc, Weak};
 use alloc::{string::String, vec::Vec};
 
-use axfs_vfs::{VfsDirEntry, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsNodeTimes};
+use axfs_vfs::{
+    TimesMask, VfsDirEntry, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeTimes, VfsNodeType,
+};
 use axfs_vfs::{VfsError, VfsResult};
 use spin::RwLock;
 
@@ -15,16 +17,16 @@ pub struct DirNode {
     this: Weak<DirNode>,
     parent: RwLock<Weak<dyn VfsNodeOps>>,
     children: RwLock<BTreeMap<String, VfsNodeRef>>,
-    times: RwLock<VfsNodeTimes>,
+    timestamp: RwLock<VfsNodeTimes>,
 }
 
 impl DirNode {
-    pub(super) fn new(parent: Option<Weak<dyn VfsNodeOps>>, times: VfsNodeTimes) -> Arc<Self> {
+    pub(super) fn new(parent: Option<Weak<dyn VfsNodeOps>>) -> Arc<Self> {
         Arc::new_cyclic(|this| Self {
             this: this.clone(),
             parent: RwLock::new(parent.unwrap_or_else(|| Weak::<Self>::new())),
             children: RwLock::new(BTreeMap::new()),
-            times: RwLock::new(times),
+            timestamp: RwLock::new(VfsNodeTimes::default()),
         })
     }
 
@@ -43,14 +45,14 @@ impl DirNode {
     }
 
     /// Creates a new node with the given name and type in this directory.
-    pub fn create_node(&self, name: &str, ty: VfsNodeType, times: VfsNodeTimes) -> VfsResult {
+    pub fn create_node(&self, name: &str, ty: VfsNodeType) -> VfsResult {
         if self.exist(name) {
             log::error!("AlreadyExists {}", name);
             return Err(VfsError::AlreadyExists);
         }
         let node: VfsNodeRef = match ty {
-            VfsNodeType::File => Arc::new(FileNode::new(times)),
-            VfsNodeType::Dir => Self::new(Some(self.this.clone()), times),
+            VfsNodeType::File => Arc::new(FileNode::new()),
+            VfsNodeType::Dir => Self::new(Some(self.this.clone())),
             _ => return Err(VfsError::Unsupported),
         };
         self.children.write().insert(name.into(), node);
@@ -73,7 +75,7 @@ impl DirNode {
 
 impl VfsNodeOps for DirNode {
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
-        Ok(VfsNodeAttr::new_dir(4096, 0))
+        Ok(VfsNodeAttr::new_dir(4096, 0, self.timestamp.read().clone()))
     }
 
     fn parent(&self) -> Option<VfsNodeRef> {
@@ -165,6 +167,12 @@ impl VfsNodeOps for DirNode {
         } else {
             self.remove_node(name)
         }
+    }
+
+    fn set_times(&self, times: VfsNodeTimes, mask: TimesMask) -> VfsResult {
+        let mut ts = self.timestamp.write();
+        ts.set_times(&times, mask);
+        Ok(())
     }
 
     axfs_vfs::impl_vfs_dir_default! {}

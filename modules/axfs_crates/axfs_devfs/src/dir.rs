@@ -1,6 +1,8 @@
 use alloc::collections::BTreeMap;
 use alloc::sync::{Arc, Weak};
-use axfs_vfs::{VfsDirEntry, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType};
+use axfs_vfs::{
+    TimesMask, VfsDirEntry, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeTimes, VfsNodeType,
+};
 use axfs_vfs::{VfsError, VfsResult};
 use spin::RwLock;
 
@@ -10,6 +12,7 @@ use spin::RwLock;
 pub struct DirNode {
     parent: RwLock<Weak<dyn VfsNodeOps>>,
     children: RwLock<BTreeMap<&'static str, VfsNodeRef>>,
+    timestamp: RwLock<VfsNodeTimes>,
 }
 
 impl DirNode {
@@ -18,6 +21,7 @@ impl DirNode {
         Arc::new(Self {
             parent: RwLock::new(parent),
             children: RwLock::new(BTreeMap::new()),
+            timestamp: RwLock::new(VfsNodeTimes::default()),
         })
     }
 
@@ -41,7 +45,7 @@ impl DirNode {
 
 impl VfsNodeOps for DirNode {
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
-        Ok(VfsNodeAttr::new_dir(4096, 0))
+        Ok(VfsNodeAttr::new_dir(4096, 0, self.timestamp.read().clone()))
     }
 
     fn parent(&self) -> Option<VfsNodeRef> {
@@ -125,6 +129,12 @@ impl VfsNodeOps for DirNode {
         } else {
             Err(VfsError::PermissionDenied) // do not support to remove nodes dynamically
         }
+    }
+
+    fn set_times(&self, times: VfsNodeTimes, mask: TimesMask) -> VfsResult {
+        let mut ts = self.timestamp.write();
+        ts.set_times(&times, mask);
+        Ok(())
     }
 
     axfs_vfs::impl_vfs_dir_default! {}

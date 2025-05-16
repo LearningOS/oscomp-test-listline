@@ -13,5 +13,6 @@ categories = ["os", "no-std", "filesystem"]
 
 [dependencies]
 axfs_vfs = { path = "../axfs_vfs", version = "0.1" }
+axhal = { workspace = true }
 spin = "0.9"
 log = "0.4"

@@ -218,25 +218,25 @@ impl VfsNodeAttr {
     }
 
     /// Creates a new `VfsNodeAttr` for a file, with the default file permission.
-    pub const fn new_file(size: u64, blocks: u64) -> Self {
+    pub fn new_file(size: u64, blocks: u64, times: VfsNodeTimes) -> Self {
         Self {
             mode: VfsNodePerm::default_file(),
             ty: VfsNodeType::File,
             size,
             blocks,
-            times: VfsNodeTimes::default(),
+            times,
         }
     }
 
     /// Creates a new `VfsNodeAttr` for a directory, with the default directory
     /// permission.
-    pub const fn new_dir(size: u64, blocks: u64) -> Self {
+    pub fn new_dir(size: u64, blocks: u64, times: VfsNodeTimes) -> Self {
         Self {
             mode: VfsNodePerm::default_dir(),
             ty: VfsNodeType::Dir,
             size,
             blocks,
-            times: VfsNodeTimes::default(),
+            times,
         }
     }
 
@@ -337,6 +337,8 @@ bitflags::bitflags! {
     }
 }
 
+use axhal::time::wall_time;
+
 /// File timestamps
 #[derive(Debug, Clone, Copy, Default)]
 pub struct VfsNodeTimes {
@@ -350,14 +352,16 @@ pub struct VfsNodeTimes {
 
 impl VfsNodeTimes {
     /// Creates a default timestamp with all values set to 0.
-    pub const fn default() -> Self {
+    pub fn default() -> Self {
+        let current_time = wall_time();
+        let (secs, nanos) = (current_time.as_secs(), current_time.subsec_nanos() as u64);
         Self {
-            atime_sec: 0,
-            atime_nsec: 0,
-            mtime_sec: 0,
-            mtime_nsec: 0,
-            ctime_sec: 0,
-            ctime_nsec: 0,
+            atime_sec: secs,
+            atime_nsec: nanos,
+            mtime_sec: secs,
+            mtime_nsec: nanos,
+            ctime_sec: secs,
+            ctime_nsec: nanos,
         }
     }
 
@@ -377,5 +381,24 @@ impl VfsNodeTimes {
             ctime_sec,
             ctime_nsec,
         }
+    }
+
+    /// Updates the timestamps based on the given mask and new times.
+    /// Only the fields specified in the mask will be updated.
+    pub fn set_times(&mut self, times: &VfsNodeTimes, mask: TimesMask) {
+        macro_rules! update_if_masked {
+            ($mask_flag:expr, $field:ident) => {
+                if mask.contains($mask_flag) {
+                    self.$field = times.$field;
+                }
+            };
+        }
+
+        update_if_masked!(TimesMask::ATIME, atime_sec);
+        update_if_masked!(TimesMask::MTIME, mtime_sec);
+        update_if_masked!(TimesMask::CTIME, ctime_sec);
+        update_if_masked!(TimesMask::ATIME_NSEC, atime_nsec);
+        update_if_masked!(TimesMask::MTIME_NSEC, mtime_nsec);
+        update_if_masked!(TimesMask::CTIME_NSEC, ctime_nsec);
     }
 }
