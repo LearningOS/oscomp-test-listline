@@ -1,7 +1,7 @@
 //! Low-level filesystem operations.
 
 use axerrno::{AxError, AxResult, ax_err, ax_err_type};
-use axfs_vfs::{VfsError, VfsNodeRef};
+use axfs_vfs::{VfsError, VfsNodeRef, VfsNodeTimes, TimesMask};
 use axio::SeekFrom;
 use cap_access::{Cap, WithCap};
 use core::fmt;
@@ -281,6 +281,11 @@ impl File {
     pub fn get_attr(&self) -> AxResult<FileAttr> {
         self.access_node(Cap::empty())?.get_attr()
     }
+
+    /// Set the file timestamps.
+    pub fn set_times(&self, times: VfsNodeTimes, mask: TimesMask) -> AxResult {
+        self.access_node(Cap::WRITE)?.set_times(times, mask)
+    }
 }
 
 impl Directory {
@@ -388,6 +393,11 @@ impl Directory {
     /// Gets the file attributes.
     pub fn get_attr(&self) -> AxResult<FileAttr> {
         self.access_node(Cap::empty())?.get_attr()
+    }
+
+    /// Set the file timestamps.
+    pub fn set_times(&self, times: VfsNodeTimes, mask: TimesMask) -> AxResult {
+        self.access_node(Cap::WRITE)?.set_times(times, mask)
     }
 }
 

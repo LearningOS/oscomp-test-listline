@@ -1,4 +1,4 @@
-pub use axhal::time::TimeValue;
+pub use axhal::time::{TimeValue, wall_time};
 pub use linux_raw_sys::general::{timespec, timeval};
 
 pub fn timevalue_to_timespec(tv: TimeValue) -> timespec {

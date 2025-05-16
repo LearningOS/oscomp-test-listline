@@ -1,12 +1,12 @@
 use core::any::Any;
 
+use super::{FileLike, Kstat};
 use alloc::sync::Arc;
 use axerrno::{AxResult, LinuxError, LinuxResult};
+use axfs::api::{TimesMask, Timestamp};
 use axio::{BufReader, PollState, prelude::*};
 use axsync::Mutex;
 use linux_raw_sys::general::S_IFCHR;
-
-use super::{FileLike, Kstat};
 
 fn console_read_bytes(buf: &mut [u8]) -> AxResult<usize> {
     let len = axhal::console::read_bytes(buf);
@@ -135,6 +135,10 @@ impl FileLike for Stdin {
     fn set_nonblocking(&self, _nonblocking: bool) -> LinuxResult {
         Ok(())
     }
+
+    fn set_times(&self, _times: Timestamp, _mask: TimesMask) -> LinuxResult {
+        Err(LinuxError::ENOSYS)
+    }
 }
 
 impl FileLike for Stdout {
@@ -166,5 +170,9 @@ impl FileLike for Stdout {
 
     fn set_nonblocking(&self, _nonblocking: bool) -> LinuxResult {
         Ok(())
+    }
+
+    fn set_times(&self, _times: Timestamp, _mask: TimesMask) -> LinuxResult {
+        Err(LinuxError::ENOSYS)
     }
 }

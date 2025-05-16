@@ -1,13 +1,17 @@
 use core::ffi::{c_char, c_int, c_void};
 
-use alloc::ffi::CString;
-use axerrno::{LinuxError, LinuxResult};
-use axtask::{TaskExtRef, current};
-use linux_raw_sys::general::{__kernel_ino_t, __kernel_off_t, AT_FDCWD, AT_REMOVEDIR, timespec};
-
 use crate::{
     fs::{Directory, FileLike, HARDLINK_MANAGER, handle_file_path},
     ptr::{UserConstPtr, UserPtr, nullable},
+    utils::time::wall_time,
+};
+use crate::{get_file_like, get_file_like_at};
+use alloc::ffi::CString;
+use axerrno::{LinuxError, LinuxResult};
+use axfs::api::{TimesMask, Timestamp};
+use axtask::{TaskExtRef, current};
+use linux_raw_sys::general::{
+    __kernel_ino_t, __kernel_off_t, AT_FDCWD, AT_REMOVEDIR, UTIME_NOW, UTIME_OMIT, timespec,
 };
 
 /// The ioctl() system call manipulates the underlying device parameters
@@ -355,12 +359,64 @@ pub fn sys_readlink(
 }
 
 pub fn sys_utimensat(
-    _dirfd: i32,
-    _path: UserConstPtr<c_char>,
-    _times: UserConstPtr<timespec>,
+    dirfd: i32,
+    path: UserConstPtr<c_char>,
+    times: UserConstPtr<timespec>,
     _flags: i32,
 ) -> LinuxResult<isize> {
-    // TODO: Fix stat ralated structure and implementation
-    warn!("sys_utimensat not implemented");
+    let path = nullable!(path.get_as_str())?;
+
+    let file = if path.is_none_or(|s| s.is_empty()) {
+        get_file_like(dirfd)?
+    } else {
+        get_file_like_at(dirfd, path.unwrap_or_default())?
+    };
+
+    let current_time = wall_time();
+    let now_sec = current_time.as_secs();
+    let now_nsec = current_time.subsec_nanos();
+
+    let mut mask = TimesMask::ALL - TimesMask::CTIME - TimesMask::CTIME_NSEC;
+    // Process user-specified times or use default values
+    let (atime_sec, atime_nsec, mtime_sec, mtime_nsec) = if let Some(times) =
+        nullable!(times.get_as_slice(2))?
+    {
+        let (a_sec, a_nsec) = match times[0].tv_nsec as _ {
+            UTIME_OMIT => {
+                mask -= TimesMask::ATIME | TimesMask::ATIME_NSEC;
+                (0, 0)
+            }
+            UTIME_NOW => (now_sec, now_nsec),
+            _ => (times[0].tv_sec as u64, times[0].tv_nsec as u32),
+        };
+
+        let (m_sec, m_nsec) = match times[1].tv_nsec as _ {
+            UTIME_OMIT => {
+                mask -= TimesMask::MTIME | TimesMask::MTIME_NSEC;
+                (0, 0)
+            }
+            UTIME_NOW => (now_sec, now_nsec),
+            _ => (times[1].tv_sec as u64, times[1].tv_nsec as u32),
+        };
+
+        (a_sec, a_nsec, m_sec, m_nsec)
+    } else {
+        // If no times specified, update both atime and mtime to current time
+        mask = TimesMask::ATIME | TimesMask::MTIME | TimesMask::ATIME_NSEC | TimesMask::MTIME_NSEC;
+        (now_sec, now_nsec, now_sec, now_nsec)
+    };
+
+    // Create timestamp object and apply it
+    let new_times = Timestamp::new(
+        atime_sec,
+        atime_nsec as _,
+        mtime_sec,
+        mtime_nsec as _,
+        now_sec,
+        now_nsec as _,
+    );
+
+    file.set_times(new_times, mask)?;
+
     Ok(0)
 }

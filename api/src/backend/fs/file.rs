@@ -2,6 +2,7 @@ use alloc::{string::String, sync::Arc};
 use core::{any::Any, ffi::c_int};
 
 use axerrno::{LinuxError, LinuxResult};
+use axfs::api::{TimesMask, Timestamp};
 use axio::PollState;
 use axsync::{Mutex, MutexGuard};
 use linux_raw_sys::general::{S_IFDIR, stat, statx};
@@ -16,6 +17,7 @@ pub trait FileLike: Send + Sync {
     fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
     fn poll(&self) -> LinuxResult<PollState>;
     fn set_nonblocking(&self, nonblocking: bool) -> LinuxResult;
+    fn set_times(&self, times: Timestamp, mask: TimesMask) -> LinuxResult;
 
     fn from_fd(fd: c_int) -> LinuxResult<Arc<Self>>
     where
@@ -104,6 +106,10 @@ impl FileLike for File {
     fn set_nonblocking(&self, _nonblocking: bool) -> LinuxResult {
         Ok(())
     }
+
+    fn set_times(&self, times: Timestamp, mask: TimesMask) -> LinuxResult {
+        Ok(self.inner().set_times(times, mask)?)
+    }
 }
 
 /// Directory wrapper for `axfs::fops::Directory`.
@@ -175,6 +181,10 @@ impl FileLike for Directory {
             .into_any()
             .downcast::<Self>()
             .map_err(|_| LinuxError::ENOTDIR)
+    }
+
+    fn set_times(&self, times: Timestamp, mask: TimesMask) -> LinuxResult {
+        Ok(self.inner().set_times(times, mask)?)
     }
 }
 

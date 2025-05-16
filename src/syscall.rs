@@ -39,6 +39,14 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         #[cfg(target_arch = "x86_64")]
         Sysno::readlink => sys_readlink(tf.arg0().into(), tf.arg1().into(), tf.arg2() as _),
         Sysno::getcwd => sys_getcwd(tf.arg0().into(), tf.arg1() as _),
+        Sysno::utimensat => sys_utimensat(
+            tf.arg0() as _,
+            tf.arg1().into(),
+            tf.arg2().into(),
+            tf.arg3() as _,
+        ),
+        // #[cfg(target_arch = "x86_64")]
+        // Sysno::futimesat => sys_fu
 
         // fd ops
         Sysno::openat => sys_openat(
@@ -224,12 +232,6 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         Sysno::gettimeofday => sys_get_time_of_day(tf.arg0().into()),
         Sysno::times => sys_times(tf.arg0().into()),
         Sysno::clock_gettime => sys_clock_gettime(tf.arg0() as _, tf.arg1().into()),
-        Sysno::utimensat => sys_utimensat(
-            tf.arg0() as _,
-            tf.arg1().into(),
-            tf.arg2().into(),
-            tf.arg3() as _,
-        ),
 
         // hack
         Sysno::futex => {

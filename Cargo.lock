@@ -265,7 +265,7 @@ dependencies = [
 [[package]]
 name = "axfs_devfs"
 version = "0.1.1"
-source = "git+https://github.com/Anekoique/axfs_crates.git#69195ad0c478c141af61b44c1670bb7733758808"
+source = "git+https://github.com/Anekoique/axfs_crates.git#db1872a58172ebc9e403984db689f8092db0ce77"
 dependencies = [
  "axfs_vfs",
  "log",
@@ -275,7 +275,7 @@ dependencies = [
 [[package]]
 name = "axfs_ramfs"
 version = "0.1.1"
-source = "git+https://github.com/Anekoique/axfs_crates.git#69195ad0c478c141af61b44c1670bb7733758808"
+source = "git+https://github.com/Anekoique/axfs_crates.git#db1872a58172ebc9e403984db689f8092db0ce77"
 dependencies = [
  "axfs_vfs",
  "log",
@@ -285,7 +285,7 @@ dependencies = [
 [[package]]
 name = "axfs_vfs"
 version = "0.1.1"
-source = "git+https://github.com/Anekoique/axfs_crates.git#69195ad0c478c141af61b44c1670bb7733758808"
+source = "git+https://github.com/Anekoique/axfs_crates.git#db1872a58172ebc9e403984db689f8092db0ce77"
 dependencies = [
  "axerrno",
  "bitflags 2.9.1",
@@ -816,9 +816,9 @@ checksum = "7943c866cc5cd64cbc25b2e01621d07fa8eb2a1a23160ee81ce38704e97b8ecf"
 
 [[package]]
 name = "kernel-elf-parser"
-version = "0.3.2"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "102999b07d80f34c1dca0d9e8f24adaa8028708842d39a3e5b98f4f085755627"
+checksum = "899ed6b4dd0d22b7f1a9cd23ec9f55ea2d96112132d398ef5eb7df520c288009"
 dependencies = [
  "axerrno",
  "cfg-if",
@@ -920,8 +920,9 @@ dependencies = [
 [[package]]
 name = "lwext4_rust"
 version = "0.2.0"
-source = "git+https://github.com/Anekoique/lwext4_rust.git#930da541f2053af4f7b3ccf8ed9a6721d006d2de"
+source = "git+https://github.com/Anekoique/lwext4_rust.git#f1fb91d9c8e783c858c08f00ff2b93a93c320daf"
 dependencies = [
+ "bitflags 2.9.1",
  "log",
 ]
 
