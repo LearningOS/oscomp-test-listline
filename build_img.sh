@@ -6,8 +6,8 @@
 # 		build_img.sh -a [arch] -fs [ext4|fat32] -file [testcase] -s [size]
 ################################################################
 # default setting
-arch=riscv64
-fs=ext4
+arch=x86_64
+fs=fat32
 size=30
 FILE=
 

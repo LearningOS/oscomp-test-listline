@@ -21,6 +21,14 @@ pub fn do_exit(exit_code: i32, group_exit: bool) -> ! {
     if let Ok(clear_tid) = clear_child_tid.get_as_mut() {
         *clear_tid = 0;
         // TODO: wake up threads, which are blocked by futex, and waiting for the address pointed by clear_child_tid
+        let guard = curr_ext
+            .process_data()
+            .futex_table
+            .get(clear_tid as *const _ as usize);
+        if let Some(futex) = guard {
+            futex.notify_one(false);
+        }
+        axtask::yield_now();
     }
 
     let process = thread.process();
