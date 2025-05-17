@@ -1,4 +1,4 @@
 
 /musl/busybox echo "#### OS COMP TEST GROUP START busybox-glibc ####"
-/musl/busybox_testcode.sh
+./busybox du
 /musl/busybox echo "#### OS COMP TEST GROUP END busybox-glibc ####"

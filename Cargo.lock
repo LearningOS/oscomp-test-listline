@@ -919,7 +919,7 @@ dependencies = [
 [[package]]
 name = "lwext4_rust"
 version = "0.2.0"
-source = "git+https://github.com/Anekoique/lwext4_rust.git#f1fb91d9c8e783c858c08f00ff2b93a93c320daf"
+source = "git+https://github.com/Anekoique/lwext4_rust.git#5f3303ebad9622109815f41d5daaf019ad0a5acf"
 dependencies = [
  "bitflags 2.9.1",
  "log",
