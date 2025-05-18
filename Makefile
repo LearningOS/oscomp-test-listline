@@ -52,11 +52,22 @@ ax_root:
 user_apps:
 	@make -C ./apps/$(AX_TESTCASE) ARCH=$(ARCH) build
 	@if [ -z "$(shell command -v sudo)" ]; then \
-		./build_img.sh -a $(ARCH) -file ./apps/$(AX_TESTCASE)/build/$(ARCH) -s 20; \
+		./build_img.sh -a $(ARCH) -file ./apps/$(AX_TESTCASE)/build/$(ARCH) -s 20 -fs ext4; \
 	else \
-		sudo ./build_img.sh -a $(ARCH) -file ./apps/$(AX_TESTCASE)/build/$(ARCH) -s 20; \
+		sudo ./build_img.sh -a $(ARCH) -file ./apps/$(AX_TESTCASE)/build/$(ARCH) -s 20 -fs ext4; \
 	fi
 	@mv ./disk.img $(AX_ROOT)/disk.img
+
+exe_apps:
+	@if [ -z "$(shell command -v sudo)" ]; then \
+		./build_img.sh -a $(ARCH) -file ./apps/$(AX_TESTCASE)/ -s 20 -fs ext4; \
+	else \
+		sudo ./build_img.sh -a $(ARCH) -file ./apps/$(AX_TESTCASE)/ -s 20 -fs ext4; \
+	fi
+	@mv ./disk.img $(AX_ROOT)/disk.img
+
+run_apps:
+	@make AX_TESTCASE=$(AX_TESTCASE) ARCH=$(ARCH) BLK=y NET=y FEATURES=fp_simd,lwext4_rs SMP=4 LOG=debug ACCEL=n run
 
 test: defconfig
 	@./scripts/app_test.sh
