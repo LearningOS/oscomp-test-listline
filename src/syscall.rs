@@ -233,10 +233,14 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         Sysno::clock_gettime => sys_clock_gettime(tf.arg0() as _, tf.arg1().into()),
 
         // hack
-        Sysno::futex => {
-            warn!("preventing pthread from blocking testing");
-            do_exit(linux_raw_sys::general::SIGSYS as _, true);
-        }
+        Sysno::futex => sys_futex(
+            tf.arg0().into(),
+            tf.arg1() as _,
+            tf.arg2() as _,
+            tf.arg3().into(),
+            tf.arg4().into(),
+            tf.arg5() as _,
+        ),
 
         // resource
         Sysno::getrlimit => sys_getrlimit(tf.arg0() as _, tf.arg1().into()),
