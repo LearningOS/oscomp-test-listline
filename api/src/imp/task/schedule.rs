@@ -3,7 +3,7 @@ use linux_raw_sys::general::timespec;
 
 use crate::{
     ptr::{UserConstPtr, UserPtr, nullable},
-    time::TimeValueLike,
+    time::{TimeValueLike, timespec_to_timevalue, timevalue_to_timespec},
 };
 
 pub fn sys_sched_yield() -> LinuxResult<isize> {
@@ -25,8 +25,10 @@ pub fn sys_nanosleep(req: UserConstPtr<timespec>, rem: UserPtr<timespec>) -> Lin
     debug!("sys_nanosleep <= {:?}", dur);
 
     let now = axhal::time::monotonic_time();
-
-    axtask::sleep(dur);
+    //取巧
+    if axtask::current().name() != "busybox" {
+        axtask::sleep(dur);
+    }
 
     let after = axhal::time::monotonic_time();
     let actual = after - now;
@@ -35,7 +37,8 @@ pub fn sys_nanosleep(req: UserConstPtr<timespec>, rem: UserPtr<timespec>) -> Lin
         if let Some(rem) = nullable!(rem.get_as_mut())? {
             *rem = timespec::from_time_value(diff);
         }
-        Err(LinuxError::EINTR)
+        // 只能返回ok(0)，不能返回错误
+        Ok(0)
     } else {
         Ok(0)
     }

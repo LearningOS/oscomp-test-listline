@@ -47,6 +47,7 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         Sysno::dup2 => sys_dup2(tf.arg0() as _, tf.arg1() as _),
         Sysno::dup3 => sys_dup2(tf.arg0() as _, tf.arg1() as _),
         Sysno::fcntl => sys_fcntl(tf.arg0() as _, tf.arg1() as _, tf.arg2() as _),
+        Sysno::access => sys_access(tf.arg0().into(), tf.arg1() as _),
 
         // io
         Sysno::read => sys_read(tf.arg0() as _, tf.arg1().into(), tf.arg2() as _),
@@ -66,12 +67,12 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
             tf.arg1() as _,
             tf.arg2() as _,
         ),
-        Sysno::ppoll => sys_ppoll(
-            tf.arg0().into(),
-            tf.arg1() as _,
-            tf.arg2().into(),
-            tf.arg3() as _,
-        ),
+        // Sysno::ppoll => sys_ppoll(
+        //     tf.arg0().into(),
+        //     tf.arg1() as _,
+        //     tf.arg2().into(),
+        //     tf.arg3() as _,
+        // ),
 
         // fs mount
         Sysno::mount => sys_mount(
