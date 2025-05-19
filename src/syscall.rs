@@ -16,6 +16,8 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         // fs ctl
         Sysno::ioctl => sys_ioctl(tf.arg0() as _, tf.arg1() as _, tf.arg2().into()),
         Sysno::chdir => sys_chdir(tf.arg0().into()),
+        #[cfg(target_arch = "x86_64")]
+        Sysno::mkdir => sys_mkdir(tf.arg0().into(), tf.arg1() as _),
         Sysno::mkdirat => sys_mkdirat(tf.arg0() as _, tf.arg1().into(), tf.arg2() as _),
         Sysno::getdents64 => sys_getdents64(tf.arg0() as _, tf.arg1().into(), tf.arg2() as _),
         Sysno::linkat => sys_linkat(
@@ -38,6 +40,21 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         ),
         #[cfg(target_arch = "x86_64")]
         Sysno::readlink => sys_readlink(tf.arg0().into(), tf.arg1().into(), tf.arg2() as _),
+        #[cfg(target_arch = "x86_64")]
+        Sysno::rename => sys_rename(tf.arg0().into(), tf.arg1().into()),
+        Sysno::renameat => sys_renameat(
+            tf.arg0() as _,
+            tf.arg1().into(),
+            tf.arg2() as _,
+            tf.arg3().into(),
+        ),
+        Sysno::renameat2 => sys_renameat2(
+            tf.arg0() as _,
+            tf.arg1().into(),
+            tf.arg2() as _,
+            tf.arg3().into(),
+            tf.arg4() as _,
+        ),
         Sysno::getcwd => sys_getcwd(tf.arg0().into(), tf.arg1() as _),
         Sysno::utimensat => sys_utimensat(
             tf.arg0() as _,
@@ -82,6 +99,22 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         ),
 
         // io mpx
+        #[cfg(target_arch = "x86_64")]
+        Sysno::select => sys_select(
+            tf.arg0() as _,
+            tf.arg1().into(),
+            tf.arg2().into(),
+            tf.arg3().into(),
+            tf.arg4().into(),
+        ),
+        Sysno::pselect6 => sys_pselect6(
+            tf.arg0() as _,
+            tf.arg1().into(),
+            tf.arg2().into(),
+            tf.arg3().into(),
+            tf.arg4().into(),
+            tf.arg5().into(),
+        ),
         #[cfg(target_arch = "x86_64")]
         Sysno::poll => sys_poll(tf.arg0().into(), tf.arg1() as _, tf.arg2() as _),
         Sysno::ppoll => sys_ppoll(
@@ -134,6 +167,9 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
             tf.arg4().into(),
         ),
         Sysno::statfs => sys_statfs(tf.arg0().into(), tf.arg1().into()),
+        #[cfg(target_arch = "x86_64")]
+        Sysno::access => Ok(0),
+        Sysno::faccessat => Ok(0),
 
         // mm
         Sysno::brk => sys_brk(tf.arg0() as _),
@@ -226,6 +262,7 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         Sysno::uname => sys_uname(tf.arg0().into()),
         Sysno::syslog => Ok(0), // TODO: syslog
         Sysno::getrandom => sys_getrandom(tf.arg0().into(), tf.arg1() as _, tf.arg2() as _),
+        Sysno::syslog => Ok(0),
 
         // time
         Sysno::gettimeofday => sys_get_time_of_day(tf.arg0().into()),
