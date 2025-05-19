@@ -5,7 +5,7 @@
 - add docs
 
 - testcode (fix libctest -> busybox test)
-  - busybox (poll select related io mpx..)
+  - busybox (df;free ;hwclock ;kill pid10)
   - libctest (socket pthread_cancel_points pthread_robust_detach)
   - Fix the error of tls_get_new_dtv in multi-core scenario (libctest) (futex? or membarriar?)
 - share memory/cow related system features (future)

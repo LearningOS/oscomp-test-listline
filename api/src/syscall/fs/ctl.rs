@@ -44,6 +44,10 @@ pub fn sys_chdir(path: UserConstPtr<c_char>) -> LinuxResult<isize> {
     Ok(0)
 }
 
+pub fn sys_mkdir(path: UserConstPtr<c_char>, mode: u32) -> LinuxResult<isize> {
+    sys_mkdirat(AT_FDCWD, path, mode)
+}
+
 pub fn sys_mkdirat(dirfd: i32, path: UserConstPtr<c_char>, mode: u32) -> LinuxResult<isize> {
     let path = path.get_as_str()?;
     debug!(
@@ -371,6 +375,45 @@ pub fn sys_utimensat(
     );
 
     file.set_times(new_times, mask)?;
+
+    Ok(0)
+}
+
+pub fn sys_rename(
+    old_path: UserConstPtr<c_char>,
+    new_path: UserConstPtr<c_char>,
+) -> LinuxResult<isize> {
+    sys_renameat2(AT_FDCWD, old_path, AT_FDCWD, new_path, 0)
+}
+
+pub fn sys_renameat(
+    old_dirfd: c_int,
+    old_path: UserConstPtr<c_char>,
+    new_dirfd: c_int,
+    new_path: UserConstPtr<c_char>,
+) -> LinuxResult<isize> {
+    sys_renameat2(old_dirfd, old_path, new_dirfd, new_path, 0)
+}
+
+pub fn sys_renameat2(
+    old_dirfd: c_int,
+    old_path: UserConstPtr<c_char>,
+    new_dirfd: c_int,
+    new_path: UserConstPtr<c_char>,
+    flags: u32,
+) -> LinuxResult<isize> {
+    let old_path = old_path.get_as_str()?;
+    let new_path = new_path.get_as_str()?;
+    debug!(
+        "sys_renameat2 <= old_dirfd: {}, old_path: {}, new_dirfd: {}, new_path: {}, flags: {}",
+        old_dirfd, old_path, new_dirfd, new_path, flags
+    );
+
+    let old_path = handle_file_path(old_dirfd, old_path)?;
+    let new_path = handle_file_path(new_dirfd, new_path)?;
+
+    // fixme: flags
+    axfs::api::rename(old_path.as_str(), new_path.as_str())?;
 
     Ok(0)
 }

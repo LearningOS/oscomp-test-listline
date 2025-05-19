@@ -2,7 +2,7 @@
 //!
 //! TODO: it doesn't work very well if the mount points have containment relationships.
 
-use alloc::{string::String, sync::Arc, vec::Vec};
+use alloc::{format, string::String, sync::Arc, vec::Vec};
 use axerrno::{AxError, AxResult, ax_err};
 use axfs_vfs::{VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps, VfsResult};
 use axns::{ResArc, def_resource};
@@ -116,7 +116,7 @@ impl RootDirectory {
         }
 
         if max_len == 0 {
-            f(self.main_fs.clone(), path) // not matched any mount point
+            f(self.main_fs.clone(), &format!("/{}", path)) // not matched any mount point
         } else {
             f(self.mounts.read()[idx].fs.clone(), &path[max_len..]) // matched at `idx`
         }

@@ -52,9 +52,9 @@ ax_root:
 user_apps:
 	@make -C ./apps/$(AX_TESTCASE) ARCH=$(ARCH) build
 	@if [ -z "$(shell command -v sudo)" ]; then \
-		./build_img.sh -a $(ARCH) -file ./apps/$(AX_TESTCASE)/build/$(ARCH) -s 20 -fs ext4; \
+		./build_img.sh -a $(ARCH) -file ./apps/$(AX_TESTCASE)/build/$(ARCH) -s 20; \
 	else \
-		sudo ./build_img.sh -a $(ARCH) -file ./apps/$(AX_TESTCASE)/build/$(ARCH) -s 20 -fs ext4; \
+		sudo ./build_img.sh -a $(ARCH) -file ./apps/$(AX_TESTCASE)/build/$(ARCH) -s 20; \
 	fi
 	@mv ./disk.img $(AX_ROOT)/disk.img
 

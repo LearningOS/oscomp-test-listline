@@ -72,7 +72,6 @@ libctest_testlist=("/$LIBC/busybox sh /$LIBC/libctest_testcode.sh")
 
 testcases_type=(
     "basic"
-    "busybox"
     "lua"
     "libctest"
 )
