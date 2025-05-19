@@ -154,6 +154,7 @@ pub fn load_user_app(
             || interp_path == "/lib/ld-musl-aarch64.so.1"
             || interp_path == "/lib/ld-musl-loongarch64.so.1"
             || interp_path == "/lib/ld-musl-riscv64-sf.so.1"
+            || interp_path == "/lib64/ld-musl-loongarch-lp64d.so.1"
         {
             // TODO: Use soft link
             interp_path = String::from("/musl/lib/libc.so");
