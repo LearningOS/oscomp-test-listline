@@ -254,6 +254,38 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         ),
         Sysno::sigaltstack => sys_sigaltstack(tf.arg0().into(), tf.arg1().into()),
 
+        // net
+        Sysno::socket => sys_socket(tf.arg0() as _, tf.arg1() as _, tf.arg2() as _),
+        Sysno::bind => sys_bind(tf.arg0() as _, tf.arg1() as _, tf.arg2() as _),
+        Sysno::getsockname => sys_getsockname(tf.arg0() as _, tf.arg1() as _, tf.arg2() as _),
+        Sysno::setsockopt => sys_setsockopt(
+            tf.arg0() as _,
+            tf.arg1() as _,
+            tf.arg2() as _,
+            tf.arg3() as _,
+            tf.arg4() as _,
+        ),
+        Sysno::sendto => sys_sendto(
+            tf.arg0() as _,
+            tf.arg1() as _,
+            tf.arg2() as _,
+            tf.arg3() as _,
+            tf.arg4() as _,
+            tf.arg5() as _,
+        ),
+        Sysno::recvfrom => sys_recvfrom(
+            tf.arg0() as _,
+            tf.arg1() as _,
+            tf.arg2() as _,
+            tf.arg3() as _,
+            tf.arg4() as _,
+            tf.arg5() as _,
+        ),
+        Sysno::shutdown => sys_shutdown(tf.arg0() as _, tf.arg1() as _),
+        Sysno::listen => sys_listen(tf.arg0() as _, tf.arg1() as _),
+        Sysno::accept => sys_accept(tf.arg0() as _, tf.arg1() as _, tf.arg2() as _),
+        Sysno::connect => sys_connect(tf.arg0() as _, tf.arg1() as _, tf.arg2() as _),
+
         // sys
         Sysno::getuid => sys_getuid(),
         Sysno::geteuid => sys_geteuid(),
